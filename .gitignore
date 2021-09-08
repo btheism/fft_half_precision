@@ -1,0 +1,3 @@
+bin/lib/*.so
+bin/lib/*.o
+bin/fft_half_2_channel

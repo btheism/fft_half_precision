@@ -1,9 +1,10 @@
-#include <filesystem>
-#include <iostream>
-int main(int argc, char *argv[]) {
-  std::filesystem::path p{argv[1]};
+#include <string>
+#include <other_function_library.hpp>
 
-  std::cout << "The size of " << p.u8string() << " is " <<
-      std::filesystem::file_size(p) << " bytes.\n";
+int main(int argc, char *argv[]) {
+
+    std::string file_list[argc-1];
+    generate_file_list(argc ,argv,file_list);
+
 }
 

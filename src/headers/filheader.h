@@ -1,0 +1,1 @@
+extern "C" void write_header(char *outptr_in, char *source_name_in, int machine_id_in, int telescope_id_in, int nchans_in, int nbits_in, int nbeams_in, int ibeam_in, double tstart_in, double start_time_in,  double tsamp_in, double fch1_in, double foff_in, double az_start_in, double za_start_in, double src_raj_in, double src_dej_in);

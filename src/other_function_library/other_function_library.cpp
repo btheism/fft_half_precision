@@ -43,3 +43,14 @@ void readfile(signed char *input_char_cpu,signed char *input_char_gpu,std::strin
     //cudaMemcpy(input_char_gpu,input_char_cpu,size*sizeof(signed char),cudaMemcpyHostToDevice);
     //cudaDeviceSynchronize();
 } 
+
+
+void generate_file_list(int argc ,char *argv[],std::string file_list[])
+{
+    int file_num= argc - 1;
+    for (int i = 0; i < file_num; i++){
+        file_list[i] = argv[i+1];
+        std::cout<<"Input file "<<i<<" is "<<file_list[i]<<std::endl;
+    }
+
+}

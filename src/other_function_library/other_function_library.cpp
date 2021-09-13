@@ -2,7 +2,7 @@
 #include <iostream>
 #include <fstream>
 
-void readfile(signed char *input_char_cpu,signed char *input_char_gpu,std::string * file_list,long long int size)
+void readfile(signed char *input_char,std::string * file_list,long long int size)
 {
     static std::ifstream original_data;
     static int file_number=0;
@@ -23,14 +23,14 @@ void readfile(signed char *input_char_cpu,signed char *input_char_gpu,std::strin
 
         if(read_remain_size<file_remain_size)
         {
-            original_data.read((char *) input_char_cpu+read_size, read_remain_size* sizeof(char));
+            original_data.read((char *) input_char+read_size, read_remain_size* sizeof(char));
             file_remain_size-=read_remain_size;
             read_size+=read_remain_size;
             read_remain_size=0;
         }
         else
         {
-            original_data.read((char *) input_char_cpu+read_size, file_remain_size* sizeof(char));
+            original_data.read((char *) input_char+read_size, file_remain_size* sizeof(char));
             read_remain_size-=file_remain_size;
             read_size+=file_remain_size;
             file_remain_size=0;
@@ -53,4 +53,21 @@ void generate_file_list(int argc ,char *argv[],std::string file_list[])
         std::cout<<"Input file "<<i<<" is "<<file_list[i]<<std::endl;
     }
 
+}
+
+
+void print_data_signed_char(signed char* data,long long int begin,long long int end)
+{
+    std::cout.flags(std::ios::left);
+    char newline=0;
+    for(int i=begin;i<end;i++)
+    {
+            std::cout<<i<<"  "<<*(data+i)<<"  ";
+            newline++;
+            if(newline==8)
+            {
+                std::cout << std::endl;
+                newline=0;
+            }
+    }
 }

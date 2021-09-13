@@ -10,7 +10,7 @@ FFT_HALF_2_CHANNEL :=fft_half_2_channel
 OTHER_FUNCTION_LIBRARY :=other_function_library
 
 NVCC := nvcc 
-NVCC_SHARED_OPTION := --compiler-options="-fPIC -shared" --linker-options="-shared"
+NVCC_SHARED_OPTION := --compiler-options="-fPIC -shared  -std=c++17" --linker-options="-shared"
 NVCC_FIND_LIB := --linker-options="-rpath=$(LIB_DIR_SHORT)"
 G++ := g++
 GCC := gcc
@@ -28,4 +28,4 @@ librarys: $(CUFFT_WRAPPER) $(KERNEL_WRAPPER) $(FIL_HEADER_WRITER) $(OTHER_FUNCTI
 main: librarys
 	$(NVCC) -o  $(BIN_DIR)$(FFT_HALF_2_CHANNEL)  $(SRC_DIR)$(FFT_HALF_2_CHANNEL)/*.cpp -I $(HEADER_DIR) -L $(LIB_DIR) $(NVCC_FIND_LIB) -l$(CUFFT_WRAPPER) -l$(KERNEL_WRAPPER) -l$(FIL_HEADER_WRITER) -l$(OTHER_FUNCTION_LIBRARY)
 clean:
-	rm -f -r $(LIB_DIR)/*.so $(BIN_DIR)$(FFT_HALF_2_CHANNEL)
+	rm -f -r $(LIB_DIR)*.so $(BIN_DIR)$(FFT_HALF_2_CHANNEL)

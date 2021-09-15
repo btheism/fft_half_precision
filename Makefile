@@ -9,8 +9,13 @@ FIL_HEADER_WRITER :=fil_header_writer
 FFT_HALF_2_CHANNEL :=fft_half_2_channel
 OTHER_FUNCTION_LIBRARY :=other_function_library
 
-NVCC := nvcc 
-NVCC_SHARED_OPTION := --compiler-options="-fPIC -shared  -std=c++17" --linker-options="-shared"
+#NVCC := nvcc --std c++17
+#NVCC_SHARED_OPTION := --compiler-options="-fPIC -shared -std=c++17" --linker-options="-shared"
+#NVCC_FIND_LIB := --compiler-options="-std=c++17" --linker-options="-rpath=$(LIB_DIR_SHORT)"
+#G++ := g++ -std=c++17
+
+NVCC := nvcc
+NVCC_SHARED_OPTION := --compiler-options="-fPIC -shared" --linker-options="-shared"
 NVCC_FIND_LIB := --linker-options="-rpath=$(LIB_DIR_SHORT)"
 G++ := g++
 GCC := gcc

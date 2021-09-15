@@ -1,6 +1,28 @@
-#include <filesystem>
+
 #include <iostream>
 #include <fstream>
+
+#if __GNUC__ <= 8
+
+#include <sys/stat.h>
+long long int GetFileSize(std::string filename)
+{
+    struct stat stat_buf;
+    int rc = stat(filename.c_str(), &stat_buf);
+    return rc == 0 ? stat_buf.st_size : -1;
+}
+
+#endif
+
+#if __GNUC__ > 8
+
+#include <filesystem>
+long long int GetFileSize(std::string filename)
+{
+    return std::filesystem::file_size(filename);
+}
+
+#endif
 
 void readfile(signed char *input_char,std::string * file_list,long long int size)
 {
@@ -16,9 +38,13 @@ void readfile(signed char *input_char,std::string * file_list,long long int size
         if(!original_data.is_open())
         {
             original_data.open(file_list[file_number].c_str(),std::ios::in|std::ios::binary);
-            if(original_data.is_open()) std::cout << "Succeed opening input file "<<file_list[file_number]<<"\n";
-            file_remain_size=std::filesystem::file_size(file_list[file_number]);
-            std::cout << "File size is "<<file_remain_size<<"\n";
+            if(original_data.is_open())
+            {
+                std::cout << "Succeed opening input file "<<file_list[file_number]<<"\n";
+                
+                file_remain_size=GetFileSize(file_list[file_number]);
+                std::cout << "File size is "<<file_remain_size<<"\n";
+            }
         }
 
         if(read_remain_size<file_remain_size)
@@ -58,11 +84,10 @@ void generate_file_list(int argc ,char *argv[],std::string file_list[])
 
 void print_data_signed_char(signed char* data,long long int begin,long long int end)
 {
-    std::cout.flags(std::ios::left);
     char newline=0;
     for(int i=begin;i<end;i++)
     {
-            std::cout<<i<<"  "<<*(data+i)<<"  ";
+            std::cout<<i<<"\t"<<(int)*(data+i)<<"\t";
             newline++;
             if(newline==8)
             {
@@ -70,4 +95,6 @@ void print_data_signed_char(signed char* data,long long int begin,long long int 
                 newline=0;
             }
     }
+    if(newline!=8)
+        std::cout << std::endl;
 }

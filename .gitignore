@@ -1,3 +1,5 @@
-bin/lib/*.so
-bin/lib/*.o
+bin/lib/libcufft_wrapper.so
+bin/lib/libkernel_wrapper.so
+bin/lib/libother_function_library.so
+bin/test/test_half_fft
 bin/fft_half_2_channel

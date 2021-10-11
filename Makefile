@@ -74,7 +74,7 @@ gitignore: .gitignore
 
 .gitignore:
 	rm -f .gitignore
-	for name in $(ALL_TARGETS);do echo $${name}>>.gitignore;done
+	for name in $(ALL_TARGET);do echo $${name}>>.gitignore;done
 	echo $(LIB_BIN_DIR)libfil_header_writer.so>>.gitignore
 
 .PHONY: main library test clean gitignore fil_header_writer .gitignore

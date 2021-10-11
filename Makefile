@@ -22,7 +22,7 @@ LINK_LIB_OPTION :=$(addprefix -l, $(LIBRARY) ) -lcufft
 LIBRARY_WITH_PATH :=$(addsuffix .so, $(addprefix $(LIB_BIN_DIR)lib, $(LIBRARY) ) )
 
 #lists of test program
-TEST :=test_half_fft
+TEST :=test_interlace
 TEST_WITH_PATH :=$(addprefix $(TEST_BIN_DIR), $(TEST) )
 
 #lists of main program
@@ -46,17 +46,17 @@ GCC_LIB :=gcc -fPIC -shared
 #	$(GCC_LIB) -o $(LIB_BIN_DIR)lib$(FIL_HEADER_WRITER).so  $(LIB_SRC_DIR)$(FIL_HEADER_WRITER)/*.c
 
 #define targets , set main as default target
-main: $(MAIN_WITH_PATH) $(HEADER)
-test: $(TEST_WITH_PATH) $(HEADER)
+main: $(MAIN_WITH_PATH)
+test: $(TEST_WITH_PATH)
 library: $(LIBRARY_WITH_PATH)
 
 $(LIBRARY_WITH_PATH):$(LIB_BIN_DIR)lib%.so:$(LIB_SRC_DIR)%.cu
 	$(NVCC_LIB) -o $@ $<
 
-$(TEST_WITH_PATH): $(TEST_BIN_DIR)%:$(TEST_SRC_DIR)%.cpp library
+$(TEST_WITH_PATH): $(TEST_BIN_DIR)%:$(TEST_SRC_DIR)%.cpp $(LIBRARY_WITH_PATH)
 	$(NVCC_TEST) -o $@ $<
 
-$(MAIN_WITH_PATH):$(MAIN_BIN_DIR)%: $(MAIN_SRC_DIR)%.cpp library
+$(MAIN_WITH_PATH):$(MAIN_BIN_DIR)%: $(MAIN_SRC_DIR)%.cpp $(LIBRARY_WITH_PATH)
 	$(NVCC_MAIN) -o $@ $<
 
 #fil_header_writer:模块有多个源文件，故在此单独编译

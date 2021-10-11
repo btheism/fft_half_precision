@@ -23,13 +23,13 @@ long long int GetFileSize(std::string filename)
 #endif
 
 
-void readfile(signed char *input_char,std::string * file_list,long long int size)
+void readfile(signed char *input_char,std::string * file_list,long long int file_size[],long long int size)
 {
     static std::ifstream original_data;
     static int file_number=0;
-    static unsigned long long int file_remain_size=0;
-    unsigned long long int read_remain_size=size;
-    unsigned long long int read_size=0;
+    static  long long int file_remain_size=0;
+    long long int read_remain_size=size;
+    long long int read_size=0;
     //打开文件
 
     while(read_remain_size>0)
@@ -41,7 +41,7 @@ void readfile(signed char *input_char,std::string * file_list,long long int size
             {
                 std::cout << "Succeed opening input file "<<file_list[file_number]<<"\n";
                 
-                file_remain_size=GetFileSize(file_list[file_number]);
+                file_remain_size=file_size[file_number];
                 std::cout << "File size is "<<file_remain_size<<"\n";
             }
         }
@@ -70,13 +70,17 @@ void readfile(signed char *input_char,std::string * file_list,long long int size
 } 
 
 
-void generate_file_list(int argc ,char *argv[],std::string file_list[])
+long long int generate_file_list(int argc ,char *argv[],std::string file_list[],long long int file_size[])
 {
+    long long int file_total_size=0;
     int file_num= argc - 1;
     for (int i = 0; i < file_num; i++){
         file_list[i] = argv[i+1];
         std::cout<<"Input file "<<i<<" is "<<file_list[i]<<std::endl;
+        file_size[i]=GetFileSize(file_list[i]);
+        file_total_size+=file_size[i];
     }
+    return file_total_size;
 
 }
 
@@ -120,6 +124,46 @@ void print_data_half(short* data,long long int begin,long long int end)
         std::cout << std::endl;
 }
 
+void print_data_float(float* data,long long int begin,long long int end)
+{
+    std::cout<<"Print float data from "<<begin<<" to "<<end<<std::endl;
+    std::cout.precision(4);
+    std::cout<<std::fixed;
+    char newline=0;
+    for(int i=begin;i<end;i++)
+    {
+            std::cout<<i<<"\t"<<data[i]<<"\t";
+            newline++;
+            if(newline==8)
+            {
+                std::cout << std::endl;
+                newline=0;
+            }
+    }
+    if(newline!=8)
+        std::cout << std::endl;
+}
+
+void print_data_double(double* data,long long int begin,long long int end)
+{
+    std::cout<<"Print float data from "<<begin<<" to "<<end<<std::endl;
+    std::cout.precision(4);
+    std::cout<<std::fixed;
+    char newline=0;
+    for(int i=begin;i<end;i++)
+    {
+            std::cout<<i<<"\t"<<data[i]<<"\t";
+            newline++;
+            if(newline==8)
+            {
+                std::cout << std::endl;
+                newline=0;
+            }
+    }
+    if(newline!=8)
+        std::cout << std::endl;
+}
+
 void print_data_half_for_copy(short* data,long long int begin,long long int end)
 {
     std::cout<<"Print half data for copy from "<<begin<<" to "<<end<<std::endl;
@@ -129,7 +173,19 @@ void print_data_half_for_copy(short* data,long long int begin,long long int end)
     {
             std::cout<<__half2float(*(half*)(data+i))<<",";
     }
+    std::cout<<std::endl;
+}
+
+void print_data_float_for_copy(float* data,long long int begin,long long int end)
+{
+    std::cout<<"Print float data for copy from "<<begin<<" to "<<end<<std::endl;
+    std::cout.precision(2);
     std::cout<<std::fixed;
+    for(int i=begin;i<end;i++)
+    {
+            std::cout<<data[i]<<",";
+    }
+    std::cout<<std::endl;
 }
 
 void float_2_half(void *input_float_void,void *output_half_void,long long int begin,long long int end)

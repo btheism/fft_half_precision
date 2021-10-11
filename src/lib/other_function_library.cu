@@ -85,7 +85,7 @@ long long int generate_file_list(int argc ,char *argv[],std::string file_list[],
 }
 
 
-void print_data_signed_char(signed char* data,long long int begin,long long int end)
+void print_data_signed_char(signed char* data,long long int begin,long long int end,int break_num)
 {
     std::cout<<"Print signed char data from "<<begin<<" to "<<end<<std::endl;
     char newline=0;
@@ -93,18 +93,18 @@ void print_data_signed_char(signed char* data,long long int begin,long long int 
     {
             std::cout<<i<<"\t"<<(int)*(data+i)<<"\t";
             newline++;
-            if(newline==8)
+            if(newline==break_num)
             {
                 std::cout << std::endl;
                 newline=0;
             }
     }
-    if(newline!=8)
+    if(newline!=break_num)
         std::cout << std::endl;
 }
 
 
-void print_data_half(short* data,long long int begin,long long int end)
+void print_data_half(short* data,long long int begin,long long int end, int break_num)
 {
     std::cout<<"Print half data from "<<begin<<" to "<<end<<std::endl;
     std::cout.precision(2);
@@ -114,53 +114,80 @@ void print_data_half(short* data,long long int begin,long long int end)
     {
             std::cout<<i<<"\t"<<__half2float(*(half*)(data+i))<<"\t";
             newline++;
-            if(newline==8)
+            if(newline==break_num)
             {
                 std::cout << std::endl;
                 newline=0;
             }
     }
-    if(newline!=8)
+    if(newline!=break_num)
         std::cout << std::endl;
 }
 
-void print_data_float(float* data,long long int begin,long long int end)
+void print_data_float(float* data,long long int begin,long long int end,int break_num)
 {
     std::cout<<"Print float data from "<<begin<<" to "<<end<<std::endl;
-    std::cout.precision(4);
+    std::cout.precision(2);
     std::cout<<std::fixed;
     char newline=0;
     for(int i=begin;i<end;i++)
     {
             std::cout<<i<<"\t"<<data[i]<<"\t";
             newline++;
-            if(newline==8)
+            if(newline==break_num)
             {
                 std::cout << std::endl;
                 newline=0;
             }
     }
-    if(newline!=8)
+    if(newline!=break_num)
         std::cout << std::endl;
 }
 
-void print_data_double(double* data,long long int begin,long long int end)
+void print_data_double(double* data,long long int begin,long long int end,int break_num)
 {
-    std::cout<<"Print float data from "<<begin<<" to "<<end<<std::endl;
-    std::cout.precision(4);
+    std::cout<<"Print double data from "<<begin<<" to "<<end<<std::endl;
+    std::cout.precision(2);
     std::cout<<std::fixed;
     char newline=0;
     for(int i=begin;i<end;i++)
     {
             std::cout<<i<<"\t"<<data[i]<<"\t";
             newline++;
-            if(newline==8)
+            if(newline==break_num)
             {
                 std::cout << std::endl;
                 newline=0;
             }
     }
-    if(newline!=8)
+    if(newline!=break_num)
+        std::cout << std::endl;
+}
+
+void print_char_binary(unsigned char c) {
+    for (int i = 7; i >= 0; --i) {
+        std::cout << ((c & (1 << i))? '1' : '0');
+    }
+}
+
+void print_data_binary(unsigned char* data,long long int begin,long long int end,int break_num)
+{
+    std::cout<<"Print binary data from "<<begin<<" to "<<end<<std::endl;
+    char newline=0;
+    for(int i=begin;i<end;i++)
+    {
+        
+        std::cout<<i<<"\t";
+        print_char_binary(data[i]);
+        std::cout<<"\t";
+        newline++;
+        if(newline==break_num)
+        {
+            std::cout << std::endl;
+            newline=0;
+        }
+    }
+    if(newline!=break_num)
         std::cout << std::endl;
 }
 

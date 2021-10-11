@@ -170,7 +170,7 @@ __global__ void complex_modulus_squared_gpu(half2 *complex_number,float *float_n
 void complex_modulus_squared(void *complex_number_void,void *float_number_void, int channel_num,int batch,int thread_num)
 {
     dim3 complex_modulus_squared_blocksize(thread_num,1,1);
-    dim3 complex_modulus_squared_gridsize(channel_num,1,1);
+    dim3 complex_modulus_squared_gridsize(batch,1,1);
     half2 *complex_number=(half2*)complex_number_void;
     float *float_number=(float*)float_number_void;
     int thread_loop=channel_num/thread_num;
@@ -200,8 +200,17 @@ __global__ void complex_modulus_squared_interlace_gpu(half2 *complex_number,floa
         printf("%d,%d,%lld,%f,%f\n",
                blockIdx.x,
                threadIdx.x,
-               (float)complex_number[block_offset].x,
-               (float)complex_number[block_offset].y
+               index_A,
+               (float)complex_number[index_A].x,
+               (float)complex_number[index_A].y
+               );  
+                
+        printf("%d,%d,%lld,%f,%f\n",
+               blockIdx.x,
+               threadIdx.x,
+               index_B,
+               (float)complex_number[index_B].x,
+               (float)complex_number[index_B].y
                );  
         */
 
@@ -239,11 +248,11 @@ __global__ void complex_modulus_squared_interlace_gpu(half2 *complex_number,floa
 void complex_modulus_squared_interlace(void *complex_number_void,void *float_number_void, int channel_num, int factor_A, int factor_B, int batch,int thread_num)
 {
     dim3 complex_modulus_squared_interlace_blocksize(thread_num,1,1);
-    dim3 complex_modulus_squared_interlace_gridsize(channel_num,1,1);
+    dim3 complex_modulus_squared_interlace_gridsize(batch,1,1);
     half2 *complex_number=(half2*)complex_number_void;
     float *float_number=(float*)float_number_void;
     int thread_loop=channel_num/thread_num;
-    printf("Function complex_modulus_squared_interlace is being invoked.\batch=%d , channel_num=%d , thread_num=%d , thread_loop=%d.\n",
+    printf("Function complex_modulus_squared_interlace is being invoked.\nbatch=%d , channel_num=%d , thread_num=%d , thread_loop=%d.\n",
            batch,
            channel_num,
            thread_num,
@@ -256,7 +265,7 @@ void complex_modulus_squared_interlace(void *complex_number_void,void *float_num
 }
 
 //计算初始各通道的平均值的函数
-__global__ void channels_average_gpu(float *input_data,double *average_data,int window_size,int interval) {
+__global__ void channels_average_gpu(float *input_data,double *average_data,int window_size,int batch_interval) {
     long long int index = (threadIdx.x + blockIdx.x * blockDim.x);
     average_data[index]=0;
     for(int step=0;step<window_size;step++)
@@ -267,83 +276,79 @@ __global__ void channels_average_gpu(float *input_data,double *average_data,int 
                index,
                index+step*interval,
                input_data[index+step*interval]);*/
-        average_data[index]+=(double)input_data[index+step*interval];
+        average_data[index]+=(double)input_data[index+step*batch_interval];
     }
-    average_data[index]/=(float)window_size;
+    average_data[index]/=(double)window_size;
 }
 
 
 //对gpu函数的封装,thread_num不超过channel_num
-void channels_average(void *input_data_void,void *average_data_void,int window_size,int interval,int channel_num,int thread_num)
+void channels_average(void *input_data_void,void *average_data_void,int window_size,int batch_interval,int channel_num,int thread_num)
 {
     dim3 channels_average_blocksize(thread_num,1,1);
     dim3 channels_average_gridsize(channel_num/thread_num,1,1);
     float *input_data=(float *)input_data_void;
     double *average_data=(double*)average_data_void;
-    printf("Function channels_average is being invoked.\nwindow_size=%d , interval=%d , channel_num=%d , thread_num=%d.\n",
+    printf("Function channels_average is being invoked.\nwindow_size=%d , batch_interval=%d , channel_num=%d , thread_num=%d.\n",
            window_size,
-           interval,
+           batch_interval,
            channel_num,
            thread_num
            );
-    channels_average_gpu<<<channels_average_gridsize,channels_average_blocksize>>>(input_data,average_data,window_size,interval);
+    channels_average_gpu<<<channels_average_gridsize,channels_average_blocksize>>>(input_data,average_data,window_size,batch_interval);
     cudaDeviceSynchronize();
     int error=cudaGetLastError();
     printf("Error code is %d\n",error);
 }
 
-/*
-__global__ void compress_gpu_interlace(double *average_data,float *uncompressed_data_head,float *uncompressed_data_tail,unsigned char*compressed_data, int batch, int step, int uncompressed_data_interval,float factor1,float factor2) {
 
-    long long int output_inside_batch_offset = (threadIdx.x + blockIdx.x * blockDim.x);
-    long long int input_batch_offset;
-    long long int output_batch_offset;
-    long long int input_inside_batch_offset;
-    for(long long int batch_num=0;batch_num<batch;batch_num++)
+__global__ void compress_gpu(double *average_data,float *uncompressed_data_head,float *uncompressed_data_tail,unsigned char*compressed_data, int batch_interval ,int batch, int step, int output_channel_num ,int window_size) {
+    long long int output_index= threadIdx.x + blockIdx.x * blockDim.x;
+    long long int input_index=output_index*8;
+    long long int average_index=input_index;
+    double head_sum;
+    double tail_sum;
+    for(long long int batch_num=0;batch_num<batch;batch_num+=step)
     {
-        input_batch_offset=batch_num*(FFTLENGTH/2+1)*2;
-        output_batch_offset=batch_num*FFTLENGTH/2/8;
-        CompressedData[output_inside_batch_offset+output_batch_offset]=0;
+        compressed_data[output_index]=0;
         for(long long int bit_step=0;bit_step<8;bit_step++)
         {
-            for(long long int sum_step=0;sum_step<step,sum_step++)
-                average_data[]
-            input_inside_batch_offset=output_inside_batch_offset*8+bit_step;
-            compressed_data[output_batch_offset+output_inside_batch_offset]+=((UncompressedData_head[input_batch_offset+input_inside_batch_offset+1]>averageData[input_inside_batch_offset])<<bit_step);
-            averageData[input_inside_batch_offset]=averageData[input_inside_batch_offset]+(UncompressedData_tail[input_batch_offset+input_inside_batch_offset+1]-UncompressedData_head[input_batch_offset+input_inside_batch_offset+1])/(float)WINDOWSIZE;
+            for(long long int sum_step=0;sum_step<step;sum_step++)
+            {
+                head_sum+=(double)uncompressed_data_head[input_index+bit_step];
+                tail_sum+=(double)uncompressed_data_head[input_index+bit_step];
+                input_index+=batch_interval;
+            }
+            compressed_data[output_index]+=(((head_sum/step)>average_data[average_index])?1:0)<<bit_step;
+            average_data[average_index+bit_step]+=(tail_sum-head_sum)/(double)window_size;
+            head_sum=0;
+            tail_sum=0;
         }
+        output_index+=output_channel_num;
     }
 }
 
-//对gpu函数的封装, thread_num不超过channel_num/8, steps指定时间分辨率
-void compress_interlace(void *input_data_void, void *uncompressed_data_head_void, void *uncompressed_data_tail_void,void *average_data_void, int steps, int batch, int channel_num, int thread_num,float factor1,float factor2) )
+//对gpu函数的封装, thread_num不超过channel_num/8, step指定时间分辨率
+void compress(void *average_data_void,float *uncompressed_data_head_void,void *compressed_data_void, int batch_interval ,int batch, int step, int channel_num ,int window_size,int thread_num)
 {
-    float *input_data=(float*)input_data_void;
-    float *uncompressed_data_head=(float*)uncompressed_data_head_void;
-    float *uncompressed_data_tail=(float*)uncompressed_data_tail_void;
-    double *average_data_void=(double*)average_data_void;
-    dim3 compress_interlace_blocksize(thread_num,1,1);
-    dim3 compress_interlace_gridsize(channel_num/thread_num/8,1,1);
-    float *input_data=(float *)input_data_void;
     double *average_data=(double*)average_data_void;
-    printf("Function compress_interlace is being invoked.\steps=%d , channel_num=%d , thread_num=%d.\n",
-           steps,
+    float *uncompressed_data_head=(float*)uncompressed_data_head_void;
+    float *uncompressed_data_tail=uncompressed_data_head+=window_size*batch_interval;
+    unsigned char *compressed_data=(unsigned char*)compressed_data_void;
+    dim3 compress_blocksize(thread_num,1,1);
+    dim3 compress_gridsize(channel_num/thread_num/8,1,1);
+    int output_channel_num=channel_num/8;
+    printf("Function compress is being invoked.\steps=%d , channel_num=%d , thread_num=%d.\n",
+           step,
            channel_num,
            thread_num
            );
-    compress_gpu<<<compress_interlace_gridsize,compress_interlace_blocksize>>>(average_data,uncompressed_data_head,uncompressed_data_tail,compressed_data,steps,interval)(input_data,average_data,window_size,interval);
+    compress_gpu<<<compress_gridsize,compress_blocksize>>>(average_data,uncompressed_data_head,uncompressed_data_tail,compressed_data,batch_interval,batch,step,output_channel_num,window_size);
     cudaDeviceSynchronize();
     int error=cudaGetLastError();
     printf("Error code is %d\n",error);
 }
 
-*/
-
-/*
-
-__global__ void compress_gpu(double *average_data,float *uncompressed_data_head,float *uncompressed_data_tail,unsigned char*compressed_data, int batch, int step, int uncompressed_data_interval,float factor1,float factor2) 
-
-*/
 
 //以下为一些辅助的测试函数
 

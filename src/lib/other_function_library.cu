@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <cstring>
 #include <cuda_fp16.h>
 
 #if __GNUC__ <= 15
@@ -22,13 +23,12 @@ long long int GetFileSize(std::string filename)
 
 #endif
 
-
-void readfile(signed char *input_char,std::string * file_list,long long int file_size[],long long int size)
+void readfile(signed char *input_char,std::string * file_list,long long int file_size_list[],long long int ask_size)
 {
     static std::ifstream original_data;
     static int file_number=0;
-    static  long long int file_remain_size=0;
-    long long int read_remain_size=size;
+    static long long int file_remain_size=0;
+    long long int read_remain_size=ask_size;
     long long int read_size=0;
     //打开文件
 
@@ -41,7 +41,7 @@ void readfile(signed char *input_char,std::string * file_list,long long int file
             {
                 std::cout << "Succeed opening input file "<<file_list[file_number]<<"\n";
                 
-                file_remain_size=file_size[file_number];
+                file_remain_size=file_size_list[file_number];
                 std::cout << "File size is "<<file_remain_size<<"\n";
             }
         }
@@ -69,21 +69,30 @@ void readfile(signed char *input_char,std::string * file_list,long long int file
     //cudaDeviceSynchronize();
 } 
 
+//该函数用于模拟readfile的行为,仅用于调试
+void read_char_array(signed char *input_char,signed char * simulate_array ,long long int ask_size)
+{
+    static long long int read_size=0;
+    std::memcpy(input_char,simulate_array+read_size,ask_size);
+    read_size+=ask_size;
+    //把数据从input_char复制到input_float,并分离两个通道的数据
+    //cudaMemcpy(input_char_gpu,input_char_cpu,size*sizeof(signed char),cudaMemcpyHostToDevice);
+    //cudaDeviceSynchronize();
+} 
 
-long long int generate_file_list(int argc ,char *argv[],std::string file_list[],long long int file_size[])
+//该函数返回输入文件的总大小,便于主程序决定循环次数等参数
+long long int generate_file_list(int argc ,char *argv[],std::string file_list[],long long int file_size_list[])
 {
     long long int file_total_size=0;
     int file_num= argc - 1;
     for (int i = 0; i < file_num; i++){
         file_list[i] = argv[i+1];
         std::cout<<"Input file "<<i<<" is "<<file_list[i]<<std::endl;
-        file_size[i]=GetFileSize(file_list[i]);
-        file_total_size+=file_size[i];
+        file_size_list[i]=GetFileSize(file_list[i]);
+        file_total_size+=file_size_list[i];
     }
     return file_total_size;
-
 }
-
 
 void print_data_signed_char(signed char* data,long long int begin,long long int end,int break_num)
 {
@@ -165,7 +174,7 @@ void print_data_double(double* data,long long int begin,long long int end,int br
 }
 
 void print_char_binary(unsigned char c) {
-    for (int i = 7; i >= 0; --i) {
+    for (unsigned char i = 0; i <=7 ; i++) {
         std::cout << ((c & (1 << i))? '1' : '0');
     }
 }
@@ -191,16 +200,25 @@ void print_data_binary(unsigned char* data,long long int begin,long long int end
         std::cout << std::endl;
 }
 
-void print_data_half_for_copy(short* data,long long int begin,long long int end)
+void print_data_half_for_copy(short* data_short,long long int begin,long long int end, int break_num)
 {
+    half *data=(half*)data_short;
     std::cout<<"Print half data for copy from "<<begin<<" to "<<end<<std::endl;
+    char newline=0;
     std::cout.precision(4);
     std::cout<<std::fixed;
     for(int i=begin;i<end;i++)
     {
-            std::cout<<__half2float(*(half*)(data+i))<<",";
+        std::cout<<(float)data[i]<<",";
+        newline++;
+        if(newline==break_num)
+        {
+            std::cout << std::endl;
+            newline=0;
+        }
     }
-    std::cout<<std::endl;
+    if(newline!=break_num)
+        std::cout << std::endl;
 }
 
 void print_data_float_for_copy(float* data,long long int begin,long long int end)

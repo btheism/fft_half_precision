@@ -159,7 +159,7 @@ output_block_offset:追踪输出数据的单个FFT窗口内的内存偏移量.
 
 block1负责表2中第1行的数据转换，该block内的线程1负责转换数据X<sub>1</sub>到X<sub>m</sub>和Y<sub>1</sub>到Y<sub>m</sub>，线程2负责转换数据X<sub>m+1</sub>到X<sub>2m</sub>和Y<sub>m+1</sub>到Y<sub>2m</sub>，直到线程1024负责转换数据X<sub>N-m+1</sub>到X<sub>N</sub>和Y<sub>N-m+1</sub>到Y<sub>N</sub>；block2负责表2中第2行的数据转换，以此类推。
 
-## main()
+#### main()
 
 ### 程序逻辑
 
@@ -170,4 +170,7 @@ graph TD;
 A[开始]
 Z[结束]
 ```
+
+#### NVCC的编译选项gencode,arch,code
+
 

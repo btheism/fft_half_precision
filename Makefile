@@ -22,22 +22,21 @@ LINK_LIB_OPTION :=$(addprefix -l, $(LIBRARY) ) -lcufft
 LIBRARY_WITH_PATH :=$(addsuffix .so, $(addprefix $(LIB_BIN_DIR)lib, $(LIBRARY) ) )
 
 #lists of test program
-TEST :=test_interlace
+TEST :=test_2_channel_little
 TEST_WITH_PATH :=$(addprefix $(TEST_BIN_DIR), $(TEST) )
 
 #lists of main program
-MAIN :=fft_half_2_channel
+MAIN :=fft_half_1_channel fft_half_2_channel
 MAIN_WITH_PATH :=$(addprefix $(MAIN_BIN_DIR), $(MAIN) )
 
 #list of all binary files
 ALL_TARGET :=$(LIBRARY_WITH_PATH) $(TEST_WITH_PATH) $(MAIN_WITH_PATH)
 
 #define some compilers
-
+#NVCC_CODE_FLAG :=-gencode arch=compute_61,code=sm_61
 NVCC_LIB := nvcc --compiler-options="-fPIC -shared" --linker-options="-shared"
 NVCC_TEST :=nvcc --linker-options="-rpath=$(LIB_DIR_FOR_TEST_LINK)" -I $(LIB_HEADER_SRC_DIR) -L $(LIB_BIN_DIR) $(LINK_LIB_OPTION)
 NVCC_MAIN :=nvcc --linker-options="-rpath=$(LIB_DIR_FOR_MAIN_LINK)" -I $(LIB_HEADER_SRC_DIR) -L $(LIB_BIN_DIR) $(LINK_LIB_OPTION)
-
 GCC_LIB :=gcc -fPIC -shared
 
 #cufft_wrapper:

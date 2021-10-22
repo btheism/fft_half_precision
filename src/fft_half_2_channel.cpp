@@ -32,9 +32,9 @@ int main(int argc, char *argv[]) {
     //compress_channel_num必须可以被8整除
     //long long int compress_channel_num=fft_length/4;
     
-    long long int begin_channel=1;
+    long long int begin_channel=fft_length/4;
     //compress_channel_num必须可以被8整除
-    long long int compress_channel_num=fft_length/2;
+    long long int compress_channel_num=fft_length/4;
     
     //动态决定thread_num
     long long int thread_num=(compress_channel_num/8>1024)?1024:(compress_channel_num/8);
@@ -112,11 +112,11 @@ int main(int argc, char *argv[]) {
     write_header((char *)compressed_data_file.c_str(), (char *)compressed_data_file.c_str(), 8, 21, 32768, 1, 1, 1, 58849., 0.0,  tsamp*fft_length, 625.0, -0.0095367431640625, 0.0, 0.0, 0.0, 0.0);
     std::cout<<"Succeed writing file header ."<<std::endl;
     //此时写入模式为追加模式(写入文件已由write_header函数创建)
-    std::ofstream compressed_data_file_stream(compressed_data_file,std::ios::app|std::ios::binary);
+    std::ofstream compressed_data_file_stream(compressed_data_file.c_str(),std::ios::app|std::ios::binary);
     #else
     std::string compressed_data_file = file_list[0].substr(0, file_list[0].length() - 4) + "_no_head.fits";
     //此时写入模式为全新模式
-    std::ofstream compressed_data_file_stream(compressed_data_file,std::ios::trunc|std::ios::binary);
+    std::ofstream compressed_data_file_stream(compressed_data_file.c_str(),std::ios::trunc|std::ios::binary);
     #endif
     if(compressed_data_file_stream.is_open()) 
     {

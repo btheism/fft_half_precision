@@ -10,21 +10,22 @@
 #include <stdlib.h>
 #include <time.h> 
 
-//与2_channel的情况相比,需要调整函数char_2_float,complex_modulus_squared_interlace为单通道版本,
-//此外还要调整channels_average和compress传入的batch间距
-//分配的空间大小,打印的数据范围也需要调整
 int main(int argc, char *argv[]) {
-    int fft_length=16;
-    int batch=17;
-    int window_size=7;
-    int step=4;
-    int thread_num=1;
+    long long int fft_length=16;
+    long long int batch=24;
+    long long int window_size=7;
+    long long int step=4;
+    long long int thread_num=1;
+    
+    long long int begin_channel=1
+    long long int channel_num=fft_length/2
+    
     signed char* input_char;
     unsigned char* compressed_data;
     short *input_half;
     double *average_data;
-    cudaMallocManaged((void**)&input_char,sizeof(signed char)*fft_length*batch);
-    cudaMallocManaged((void**)&input_half,sizeof(short)*(fft_length+2)*batch);
+    cudaMallocManaged((void**)&input_char,sizeof(signed char)*fft_length*batch*2);
+    cudaMallocManaged((void**)&input_half,sizeof(short)*(fft_length+2)*batch*2);
     cudaMallocManaged((void**)&average_data,sizeof(double)*fft_length/2);
     cudaMallocManaged((void**)&compressed_data,sizeof(unsigned char)*fft_length/2/8*(batch-(window_size-step))/step);
     std::cout<<"fft length = "<<fft_length<<std::endl;
@@ -39,38 +40,40 @@ int main(int argc, char *argv[]) {
     
     //srand((unsigned)time(NULL));
     srand(932563);
-    for(int i=0;i<fft_length*batch;i++)
+    for(long long int i=0;i<fft_length*batch*2;i++)
         input_char[i]=rand()%256;
     
-    print_data_signed_char(input_char,0,fft_length*batch,fft_length);
+    print_data_signed_char(input_char,0,fft_length*batch*2,fft_length*2);
     
     //thread_num<=fft_length
-    char2float(input_char,input_half,fft_length,batch,thread_num);
-    print_data_half(input_half,0,(fft_length+2)*batch,fft_length+2);
-    print_data_half_for_copy(input_half,0,(fft_length+2)*batch,fft_length+2);
+    char2float_interlace(input_char,input_half,fft_length,batch,thread_num);
+    char2float_interlace(input_char,input_half,fft_length,batch,thread_num);
+    print_data_half(input_half,0,(fft_length+2)*batch*2,fft_length+2);
+    print_data_half_for_copy(input_half,0,(fft_length+2)*batch*2,fft_length+2);
     
-    //单通道数据的fft_num=batch
-    fft_1d_half(input_half,input_half,fft_length,batch);
-    print_data_half(input_half,0,(fft_length+2)*batch,fft_length+2);
+    //双通道数据的fft_num需要乘2
+    fft_1d_half(input_half,input_half,fft_length,batch*2);
+    print_data_half(input_half,0,(fft_length+2)*batch*2,fft_length+2);
     
     //thread_num<=fft_length/2
-    complex_modulus_squared(input_half+2,input_half+2,fft_length/2,batch,thread_num);
-    print_data_float(input_float,0,(fft_length/2+1)*batch,fft_length/2+1);
+    complex_modulus_squared_interlace(input_half,input_half,fft_length/2,1,1,batch,thread_num);
+    print_data_float(input_float,0,(fft_length/2+1)*batch*2,fft_length/2+1);
     
-        channels_sum(input_float,average_data,window_size-step,(double)window_size,fft_length/2+1,fft_length/2,thread_num);
+    //thread_num<=fft_length/2,这里减去step是为了配合compress函数
+    channels_sum(input_float,average_data,window_size-step,(double)window_size,(fft_length/2+1)*2,fft_length/2,thread_num);
     print_data_double(average_data,0,fft_length/2,fft_length/2);
     
     //thread_num<=fft_length/2/8
-    compress(average_data,input_float, input_float+(fft_length/2+1)*window_size,compressed_data,(fft_length/2+1),(batch-(window_size-step))/step,step,fft_length/2,window_size, thread_num);
+    compress(average_data, input_float, input_float+(fft_length/2+1)*2*window_size,compressed_data,(fft_length/2+1)*2, (batch-(window_size-step))/step, step, 1 ,channel_num, window_size, thread_num);
     print_data_binary(compressed_data,0,(fft_length/2/8)*((batch-(window_size-step))/step),fft_length/2/8);
     
     //打印各个window区间内的平均数以验证数据压缩是否正确
     for(int i=0;i<(batch-(window_size-step))/step;i++)
     {
         std::cout<<"print step "<<i<<" step_average vs window_average"<<std::endl;
-        channels_average((input_float+i*(fft_length/2+1)*step),average_data,step,step,(fft_length/2+1),fft_length/2,thread_num);
+        channels_sum((input_float+i*(fft_length/2+1)*2*step),average_data,step,step,(fft_length/2+1)*2,fft_length/2,thread_num);
         print_data_double(average_data,0,fft_length/2,fft_length/2);
-        channels_average((input_float+i*(fft_length/2+1)*step),average_data,window_size,window_size,(fft_length/2+1),fft_length/2,thread_num);
+        channels_sum((input_float+i*(fft_length/2+1)*2*step),average_data,window_size,window_size,(fft_length/2+1)*2,fft_length/2,thread_num);
         print_data_double(average_data,0,fft_length/2,fft_length/2);
     }
     

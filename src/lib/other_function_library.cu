@@ -25,13 +25,14 @@ long long int GetFileSize(std::string filename)
 
 void readfile(signed char *input_char,std::string * file_list,long long int file_size_list[],long long int ask_size)
 {
+    std::cout<<"read char data to cpu memory , size = "<<ask_size<<std::endl;
     static std::ifstream original_data;
     static int file_number=0;
     static long long int file_remain_size=0;
     long long int read_remain_size=ask_size;
     long long int read_size=0;
     //打开文件
-
+ 
     while(read_remain_size>0)
     {
         if(!original_data.is_open())
@@ -43,6 +44,10 @@ void readfile(signed char *input_char,std::string * file_list,long long int file
                 
                 file_remain_size=file_size_list[file_number];
                 std::cout << "File size is "<<file_remain_size<<"\n";
+            }
+            else
+            {
+                std::cout << "Fali to open input file "<<file_list[file_number]<<"\n";
             }
         }
 
@@ -60,13 +65,23 @@ void readfile(signed char *input_char,std::string * file_list,long long int file
             read_size+=file_remain_size;
             file_remain_size=0;
             original_data.close();
+            std::cout << "Close file "<<file_list[file_number]<<"\n";
             file_number++;
         }
     }
-
-    //把数据从input_char复制到input_float,并分离两个通道的数据
-    //cudaMemcpy(input_char_gpu,input_char_cpu,size*sizeof(signed char),cudaMemcpyHostToDevice);
-    //cudaDeviceSynchronize();
+    
+    if(read_remain_size==-1)
+    {
+         if(!original_data.is_open())
+         {
+             std::cout << "All input files all closed"<<file_list[file_number]<<"\n";
+         }
+         else
+         {
+             original_data.close();
+             std::cout << "Close file "<<file_list[file_number]<<"\n";
+         }
+    }
 } 
 
 //该函数用于模拟readfile的行为,仅用于调试

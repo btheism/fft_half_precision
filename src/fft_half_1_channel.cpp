@@ -101,14 +101,14 @@ int main(int argc, char *argv[]) {
     #ifdef WRITE_DATA
     //写入文件头
     #ifdef WRITE_HEADER
-    std::string compressed_data_file = file_list[0].substr(0, file_list[0].length() - 4) + ".fits";
+    std::string compressed_data_file = file_list[0].substr(0, file_list[0].length() - 4) + ".fil";
     //该函数会根据传入的文件名创建一个新文件,写入并关闭
     write_header((char *)compressed_data_file.c_str(), (char *)compressed_data_file.c_str(), 8, 21, 32768, 1, 1, 1, 58849., 0.0,  tsamp*fft_length*step, 625.0, -0.0095367431640625, 0.0, 0.0, 0.0, 0.0);
     std::cout<<"Succeed writing file header ."<<std::endl;
     //此时写入模式为追加模式(写入文件已由write_header函数创建)
     std::ofstream compressed_data_file_stream(compressed_data_file.c_str(),std::ios::app|std::ios::binary);
     #else
-    std::string compressed_data_file = file_list[0].substr(0, file_list[0].length() - 4) + "_no_head.fits";
+    std::string compressed_data_file = file_list[0].substr(0, file_list[0].length() - 4) + "_no_head.fil";
     //此时写入模式为全新模式
     std::ofstream compressed_data_file_stream(compressed_data_file.c_str(),std::ios::trunc|std::ios::binary);
     #endif

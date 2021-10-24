@@ -1,6 +1,6 @@
 //该程序由test_2_channel_with_reflect_and_loop修改而来
 //#define PRINT_MEMORY 是否打印变换结果
-#define WRITE_HEADER 是否写入文件头
+//#define WRITE_HEADER 是否写入文件头
 #define WRITE_DATA 是否写入文件
 
 #include <string>
@@ -21,16 +21,16 @@ int main(int argc, char *argv[]) {
     long long int signal_length=generate_file_list(argc, argv, file_list, file_size_list);
     
     //下列数据均为自定义参量    
-    long long int fft_length=131072;
+    long long int fft_length=32768;
     long long int window_size=4096;
     long long int step=4;
     
-    long long int begin_channel=fft_length/4;
+    long long int begin_channel=12288;
     //compress_channel_num必须可以被8整除
-    long long int compress_channel_num=fft_length/4;
+    long long int compress_channel_num=20480;
     
-    //动态决定thread_num
-    long long int thread_num=(compress_channel_num/8>1024)?1024:(compress_channel_num/8);
+    //决定thread_num
+    long long int thread_num=1024;
     
     //规定缓冲区的大小,该大小由gpu的显存决定,太大会导致程序运行失败
     //注意,由于compress函数一次读取step个数据,为避免内存访问越界,batch_buffer_size必须被step整除,此外,为了确保对可以对数据末尾的反射,以及在拷贝数据时出错batch_buffer_size>=2*window_size
@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
     //不知为何，当cufft传入的batch为2的整数次幂时，所用的缓冲空间约为非整数次幂的一半，故最好保证batch_buffer_size-window_size是2的整数次幂
     long long int batch_buffer_size=12288;
     
-    double tsamp=1.0/2560000000;
+    double tsamp=1.0/500000000;
     
     //下列参数由程序自行计算    
     

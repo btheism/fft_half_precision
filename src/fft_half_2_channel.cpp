@@ -1,6 +1,6 @@
 //该程序由test_2_channel_with_reflect_and_loop修改而来
 //#define PRINT_MEMORY //是否打印变换结果
-#define WRITE_HEADER //是否写入文件头
+//#define WRITE_HEADER //是否写入文件头
 #define WRITE_DATA //是否写入文件
 
 #include <string>

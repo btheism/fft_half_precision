@@ -90,13 +90,10 @@ __global__ void char2float_gpu(signed char*input_char,half *input_half,long long
     long long int input_grid_offset = fft_length * blockIdx.x;
     long long int output_grid_offset = (fft_length + 2) * blockIdx.x;
     
-    //input_block_offset = i * 1024 * 2 + threadIdx.x * 2;
-    //output_block_offset = i * 1024 + threadIdx.x;
     //计算block内部的内存偏移量(该偏移量已与不同block的内存偏移量相加)
     long long int input_block_offset=threadIdx.x+input_grid_offset;
     long long int output_block_offset=threadIdx.x+output_grid_offset;
-    // __shared__ signed char sharedMemory[2048];
-    //用1024个线程分128次(131072/1024)完成一个batch内的数据转置
+
     for (int i = 0; i < thread_loop; i++) {
 
         //sharedMemory[threadIdx.x]=(signed char)input_char[input_block_offset];

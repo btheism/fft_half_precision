@@ -1,6 +1,12 @@
 bin/lib/libcufft_wrapper.so
 bin/lib/libkernel_wrapper.so
 bin/lib/libother_function_library.so
-bin/test/test_interlace
+bin/test/test_2_channel_with_reflect
+bin/test/test_2_channel_with_reflect_and_loop
+bin/test/test_1_channel_with_reflect
+bin/test/test_cufft_plan_memory_size
+bin/test/test_half_fft
+bin/test/de_interlace
 bin/fft_half_2_channel
+bin/fft_half_1_channel
 bin/lib/libfil_header_writer.so

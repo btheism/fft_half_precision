@@ -20,17 +20,18 @@ int main(int argc, char *argv[]) {
     //从generate_file_list函数得到输入数据的总长度
     long long int signal_length=generate_file_list(argc, argv, file_list, file_size_list);
     
-    //下列数据均为自定义参量    
+    //下列数据均为自定义参量,fft_length必须被2*thread_num整除 
     long long int fft_length=32768;
     long long int window_size=4096;
     long long int step=4;
     
     long long int begin_channel=12288;
-    //compress_channel_num必须可以被8整除
+    //compress_channel_num必须可以被8*thread_num_compress整除
     long long int compress_channel_num=20480;
     
     //决定thread_num
     long long int thread_num=1024;
+    long long int thread_num_compress=1024;
     
     //规定缓冲区的大小,该大小由gpu的显存决定,太大会导致程序运行失败
     //注意,由于compress函数一次读取step个数据,为避免内存访问越界,batch_buffer_size必须被step整除,此外,为了确保对可以对数据末尾的反射,以及在拷贝数据时出错batch_buffer_size>=2*window_size
@@ -170,7 +171,7 @@ int main(int argc, char *argv[]) {
         print_data_float(input_float,0,(fft_length/2+1)*batch_buffer_size,fft_length/2+1);
         #endif
         
-        compress(average_data, input_float, input_float+input_float_offset,compressed_data,(fft_length/2+1),per_batch/step, step,begin_channel, compress_channel_num, window_size, thread_num);
+        compress(average_data, input_float, input_float+input_float_offset,compressed_data,(fft_length/2+1),per_batch/step, step,begin_channel, compress_channel_num, window_size, thread_num_compress);
         #ifdef PRINT_MEMORY
         print_data_binary(compressed_data,0,(compress_channel_num/8)*(per_batch/step),compress_channel_num/8);
         #endif
@@ -229,7 +230,7 @@ int main(int argc, char *argv[]) {
              print_data_float(input_float,0,(fft_length/2+1)*batch_buffer_size,fft_length/2+1);
              #endif
              
-             compress(average_data, input_float, input_float+input_float_offset,compressed_data,(fft_length/2+1),per_batch/step, step, begin_channel, compress_channel_num, window_size, thread_num);
+             compress(average_data, input_float, input_float+input_float_offset,compressed_data,(fft_length/2+1),per_batch/step, step, begin_channel, compress_channel_num, window_size, thread_num_compress);
              #ifdef PRINT_MEMORY
              print_data_binary(compressed_data,0,(compress_channel_num/8)*(per_batch/step),compress_channel_num/8);
              #endif
@@ -262,7 +263,7 @@ int main(int argc, char *argv[]) {
              print_data_float(input_float,0,(fft_length/2+1)*batch_buffer_size,fft_length/2+1);
              #endif
              
-             compress(average_data, input_float, input_float+input_float_offset,compressed_data,(fft_length/2+1),((window_size-step)-(per_batch-remain_batch))/step+1, step, begin_channel, compress_channel_num, window_size, thread_num);
+             compress(average_data, input_float, input_float+input_float_offset,compressed_data,(fft_length/2+1),((window_size-step)-(per_batch-remain_batch))/step+1, step, begin_channel, compress_channel_num, window_size, thread_num_compress);
              #ifdef PRINT_MEMORY
              print_data_binary(compressed_data,0,(compress_channel_num/8)*((window_size-step)-(per_batch-remain_batch))/step+1,compress_channel_num/8);
              #endif
@@ -299,7 +300,7 @@ int main(int argc, char *argv[]) {
              #endif
              
              //压缩量为(remain_batch+window_size-step)/step+1
-             compress(average_data, input_float, input_float+input_float_offset,compressed_data,(fft_length/2+1),(window_size-step+remain_batch)/step+1, step, begin_channel, compress_channel_num, window_size, thread_num);
+             compress(average_data, input_float, input_float+input_float_offset,compressed_data,(fft_length/2+1),(window_size-step+remain_batch)/step+1, step, begin_channel, compress_channel_num, window_size, thread_num_compress);
              #ifdef PRINT_MEMORY
              print_data_binary(compressed_data,0,(compress_channel_num/8)*((window_size-step+remain_batch)/step+1),compress_channel_num/8);
              #endif

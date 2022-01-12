@@ -46,6 +46,7 @@ void swap_short( unsigned short *ps ) /* includefile */
   pc[1] = t;
 }
 
+//变换int的大小端格式
 void swap_int( int *pi ) /* includefile */
 {
   unsigned char t;

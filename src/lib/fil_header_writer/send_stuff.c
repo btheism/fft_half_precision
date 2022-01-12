@@ -6,13 +6,18 @@
 /*#include "sigproc.h"*/
 extern FILE *input, *output;
 extern int swapout;
+
+//先写入了string的长度，再写入string本身
 void send_string(char *string) /* includefile */
 {
   int len;
   len=strlen(string);
   if (swapout) swap_int(&len);
+  //把string的占用空间（即变量len）写入文件头，且变量len已根据swapout的值事先进行了大小端转换，写了一个int
   fwrite(&len, sizeof(int), 1, output);
+  //再把len转回去！简直多次一举，下一行直接写成fwrite(string, sizeof(char), strlen(string), output)不就行了
   if (swapout) swap_int(&len);
+  //把string写入文件头
   fwrite(string, sizeof(char), len, output);
   /*fprintf(stderr,"%s\n",string);*/
 }
@@ -25,6 +30,7 @@ void send_float(char *name,float floating_point) /* includefile */
   /*fprintf(stderr,"%f\n",floating_point);*/
 }
 
+//写入值的名称后写入值的数值
 void send_double (char *name, double double_precision) /* includefile */
 {
   send_string(name);

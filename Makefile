@@ -28,8 +28,8 @@ LIBRARY :=cufft_wrapper kernel_wrapper other_function_library
 LINK_LIB_OPTION :=$(addprefix -l, $(LIBRARY) ) -lcufft -lfil_header_writer
 LIBRARY_WITH_PATH :=$(addsuffix .so, $(addprefix $(LIB_BIN_DIR)lib, $(LIBRARY) ) )
 
-#lists of test program
-TEST :=test_2_channel_with_reflect test_2_channel_with_reflect_and_loop test_1_channel_with_reflect test_cufft_plan_memory_size test_half_fft de_interlace
+#lists of test programs , add new test programs to here to compile them
+TEST :=test_2_channel_with_reflect test_2_channel_with_reflect_and_loop test_1_channel_with_reflect test_cufft_plan_memory_size test_half_fft de_interlace test_write_header
 TEST_WITH_PATH :=$(addprefix $(TEST_BIN_DIR), $(TEST) )
 
 #lists of main program
@@ -61,10 +61,11 @@ library: $(LIBRARY_WITH_PATH) fil_header_writer
 $(LIBRARY_WITH_PATH):$(LIB_BIN_DIR)lib%.so:$(LIB_SRC_DIR)%.cu
 	$(NVCC_LIB) -o $@ $<
 
+#此处利用“%”匹配$(TEST_WITH_PATH)所列出的目标
 $(TEST_WITH_PATH): $(TEST_BIN_DIR)%:$(TEST_SRC_DIR)%.cpp $(LIBRARY_WITH_PATH) $(LIB_BIN_DIR)libfil_header_writer.so
 	$(NVCC_TEST) -o $@ $<
 
-$(MAIN_WITH_PATH):$(MAIN_BIN_DIR)%: $(MAIN_SRC_DIR)%.cpp $(LIBRARY_WITH_PATH) $(LIB_BIN_DIR)libfil_header_writer.so
+$(MAIN_WITH_PATH):$(MAIN_BIN_DIR)%:$(MAIN_SRC_DIR)%.cpp $(LIBRARY_WITH_PATH) $(LIB_BIN_DIR)libfil_header_writer.so
 	$(NVCC_MAIN) -o $@ $<
 
 #fil_header_writer:模块有多个源文件，故在此单独编译

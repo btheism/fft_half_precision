@@ -45,22 +45,36 @@ char isign;
 void filterbank_header(FILE *outptr) /* includefile */
 {
   int i,j;
+  //这里初始化了全局变量output，之后的send_string调用了该值
   output=outptr;
+  
+  
   if (obits == -1) obits=nbits;
   /* go no further here if not interested in header parameters */
   if (headerless) return;
   /* broadcast the header parameters to the output stream */
+  
+  //只有machine_id非零时才会写入文件头
   if (machine_id != 0) {
+    
+    //这里调用send_string函数写入了两个字符串
     send_string("HEADER_START");
     send_string("rawdatafile");
+    
+    //这里调用send_string函数写入了inpfile，而在write_header函数中，inpfile被设定为一个空字符串
     send_string(inpfile);
+    
     if (!strings_equal(source_name,"")) {
+      //写入了"source_name"和source_name的值
       send_string("source_name");
       send_string(source_name);
     }
+    //写入值的名称与数值
     send_int("machine_id",machine_id);
     send_int("telescope_id",telescope_id);
     send_coords(src_raj,src_dej,az_start,za_start);
+    
+    
     if (zerolagdump) {
       /* time series data DM=0.0 */
       send_int("data_type",2);

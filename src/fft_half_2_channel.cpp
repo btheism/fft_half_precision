@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
     //不知为何，当cufft传入的batch为2的整数次幂时，所用的缓冲空间约为非整数次幂的一半，故最好保证batch_buffer_size-window_size是2的整数次幂
     long long int batch_buffer_size=8192;
     
-    double tsamp=1.0/(2560000000/2);
+    double tsamp=1.0/(2500000000/2);
     //下列参数由程序自行计算    
     
     //计算数据被划分的batch数,双通道数据需要额外除以2 ，且要去除无法被step整除的部分
@@ -109,7 +109,7 @@ int main(int argc, char *argv[]) {
     #ifdef WRITE_HEADER
     std::string compressed_data_file = file_list[0].substr(0, file_list[0].length() - 4) + ".fil";
     //该函数会根据传入的文件名创建一个新文件,写入并关闭
-    write_header((char *)compressed_data_file.c_str(), (char *)compressed_data_file.c_str(), 8, 21, 32768, 1, 1, 1, 58849., 0.0,  tsamp*fft_length*step, 625.0, -0.0095367431640625, 0.0, 0.0, 0.0, 0.0);
+    write_header((char *)compressed_data_file.c_str(), "rawdata", 8, 21, compress_channel_num, 1, 1, 1, 58849., 0.0,  tsamp*fft_length*step, 1.0/tsamp/1.0e6/fft_length*begin_channel, 1.0/tsamp/1.0e6/fft_length, 0.0, 0.0, 0.0, 0.0);
     std::cout<<"Succeed writing file header ."<<std::endl;
     //此时写入模式为追加模式(写入文件已由write_header函数创建)
     std::ofstream compressed_data_file_stream(compressed_data_file.c_str(),std::ios::app|std::ios::binary);

@@ -41,7 +41,7 @@ ALL_TARGET :=$(LIBRARY_WITH_PATH) $(TEST_WITH_PATH) $(MAIN_WITH_PATH)
 
 #define some compilers
 #NVCC_CODE_FLAG :=-gencode arch=compute_75,code=sm_75
-NVCC_LIB := nvcc --compiler-options="-fPIC -shared" --linker-options="-shared" $(NVCC_CODE_FLAG)
+NVCC_LIB := nvcc --compiler-options="-fPIC -shared" --linker-options="-shared" $(NVCC_CODE_FLAG) -DPRINT_INFO
 NVCC_TEST :=nvcc --linker-options="-rpath=$(LIB_DIR_FOR_TEST_LINK)" -I $(LIB_HEADER_SRC_DIR) -L $(LIB_BIN_DIR) $(LINK_LIB_OPTION) $(NVCC_CODE_FLAG)
 NVCC_MAIN :=nvcc --linker-options="-rpath=$(LIB_DIR_FOR_MAIN_LINK)" -I $(LIB_HEADER_SRC_DIR) -L $(LIB_BIN_DIR) $(LINK_LIB_OPTION) $(NVCC_CODE_FLAG) -DWRITE_HEADER -DWRITE_DATA
 GCC_LIB :=gcc -fPIC -shared

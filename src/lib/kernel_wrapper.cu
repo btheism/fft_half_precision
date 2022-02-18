@@ -320,9 +320,10 @@ void complex_modulus_squared(void *complex_number_void,void *float_number_void, 
     dim3 complex_modulus_squared_gridsize(batch,1,1);
     half2 *complex_number=(half2*)complex_number_void;
     float *float_number=(float*)float_number_void;
+    //跳过通道0,需要++;
     complex_number++;
     float_number++;
-    int thread_loop=channel_num/thread_num;
+    long long int thread_loop=channel_num/thread_num;
 #ifdef PRINT_INFO
     printf("Function complex_modulus_squared is called.\nbatch=%lld , channel_num=%lld , thread_num=%lld , thread_loop=%lld.\n",
            batch,
@@ -409,16 +410,19 @@ void complex_modulus_squared_interlace(void *complex_number_void,void *float_num
     float *float_number=(float*)float_number_void;
     //printf("complex_number=%p,float_number=%p\n",complex_number,float_number);
     //printf("size of half2=%lld\n",sizeof(half2));
+    //跳过通道0,需要++;
     complex_number++;
     float_number++;
     //printf("complex_number=%p,float_number=%p\n",complex_number,float_number);
     long long int thread_loop=channel_num/thread_num;
 #ifdef PRINT_INFO
-    printf("Function complex_modulus_squared_interlace is called.\nbatch=%lld , channel_num=%lld , thread_num=%lld , thread_loop=%lld.\n",
+    printf("Function complex_modulus_squared_interlace is called.\nbatch=%lld , channel_num=%lld , thread_num=%lld , thread_loop=%lld , factor_A=%f , factor_B=%f .\n",
            batch,
            channel_num,
            thread_num,
-           thread_loop);
+           thread_loop,
+           factor_A,
+           factor_B);
 #endif
     complex_modulus_squared_interlace_gpu<<<complex_modulus_squared_interlace_gridsize,complex_modulus_squared_interlace_blocksize>>>
     (complex_number,float_number,channel_num,factor_A,factor_B,thread_loop,thread_num);
@@ -475,7 +479,7 @@ void channels_sum(void *input_data_void,void *sum_data_void,long long int window
 
 //这里的batch指按照步长滑动的次数
 
-__global__ void compress_gpu(double *average_data,float *uncompressed_data_head,float *uncompressed_data_tail,unsigned char*compressed_data, long long int batch_interval ,long long int batch, long long int step, long long int output_channel_num ,long long int window_size) {
+__global__ void compress_gpu(double *average_data,float *uncompressed_data_head,float *uncompressed_data_tail,unsigned char*compressed_data, long long int batch_interval, long long int batch, long long int step, long long int output_channel_num ,long long int window_size) {
     long long int output_index= threadIdx.x + blockIdx.x * blockDim.x;
     long long int input_index=output_index*8;
     long long int average_index=input_index;
@@ -501,11 +505,12 @@ __global__ void compress_gpu(double *average_data,float *uncompressed_data_head,
                 //printf("%d,%d,%d,%lld,Iht\n",threadIdx.x,blockIdx.x,batch_num,input_index+bit_step);
                 input_index+=batch_interval;
             }
+            //回退input_index
             input_index-=batch_interval*step;
-            average_data[average_index+bit_step]+=tail_sum/(float)window_size;
             bit_sum+=(((head_sum/step)>average_data[average_index+bit_step])?1:0)<<bit_step;
-            //printf("%d,%d,%d,%lld,%f,%f,CP\n",threadIdx.x,blockIdx.x,batch_num,average_index+bit_step,(head_sum/step),average_data[average_index+bit_step]);
             average_data[average_index+bit_step]-=head_sum/(float)window_size;
+            average_data[average_index+bit_step]+=tail_sum/(float)window_size;
+            //printf("%d,%d,%d,%lld,%f,%f,CP\n",threadIdx.x,blockIdx.x,batch_num,average_index+bit_step,(head_sum/step),average_data[average_index+bit_step]);
             //printf("%d,%d,%d,%lld,%f,%f,%f,NA\n",threadIdx.x,blockIdx.x,batch_num,average_index+bit_step,(tail_sum/step),(head_sum/step),average_data[average_index+bit_step]);
             //printf("%d,%d,%d,O+\n",threadIdx.x,blockIdx.x,bit_sum);
         }
@@ -521,11 +526,12 @@ void compress(void *average_data_void,float *uncompressed_data_head_void, float 
 {
     double *average_data=(double*)average_data_void;
     float *uncompressed_data_head=(float*)uncompressed_data_head_void;
+    //++跳过通道0
     uncompressed_data_head++;
     float *uncompressed_data_tail=(float*)uncompressed_data_tail_void;
     uncompressed_data_tail++;
-    uncompressed_data_tail-=step*batch_interval;
     
+    //调整指针到begin_channel
     average_data+=(begin_channel-1);
     uncompressed_data_head+=(begin_channel-1);
     uncompressed_data_tail+=(begin_channel-1);
@@ -553,6 +559,89 @@ void compress(void *average_data_void,float *uncompressed_data_head_void, float 
 #endif
 }
 
+__global__ void compress_reflect_gpu(double *average_data,float *uncompressed_data_head,float *uncompressed_data_tail,unsigned char*compressed_data, long long int batch_interval, long long int batch, long long int step, long long int output_channel_num ,long long int window_size) {
+    long long int output_index= threadIdx.x + blockIdx.x * blockDim.x;
+    long long int input_index_head=output_index*8;
+    long long int input_index_tail=input_index_head;
+    long long int average_index=input_index_head;
+    //printf("%d,%d,%lld,%lld,o,i,O\n",threadIdx.x,blockIdx.x,output_index,input_index);
+    double head_sum;
+    double tail_sum;
+    unsigned char bit_sum;
+    long long int batch_num=0;
+    for(batch_num=0;batch_num<batch;batch_num++)
+    {
+        //printf("b_n=%d\n",batch_num);
+        bit_sum=0;
+        //完成相邻8个通道一个step内数据的压缩
+        for(int bit_step=0;bit_step<8;bit_step++)
+        {
+            head_sum=0;
+            tail_sum=0;
+            //完成单个通道的step个数据的读取
+            for(int sum_step=0;sum_step<step;sum_step++)
+            {
+                head_sum+=uncompressed_data_head[input_index_head+bit_step];
+                tail_sum+=uncompressed_data_tail[input_index_tail+bit_step];
+                //printf("%d,%d,%d,%lld,Iht\n",threadIdx.x,blockIdx.x,batch_num,input_index+bit_step);
+                input_index_head+=batch_interval;
+                input_index_tail-=batch_interval;
+            }
+            //回退input_index,以计算相邻8个通道的下一个通道
+            input_index_head-=batch_interval*step;
+            input_index_tail+=batch_interval*step;
+            bit_sum+=(((head_sum/step)>average_data[average_index+bit_step])?1:0)<<bit_step;
+            average_data[average_index+bit_step]-=head_sum/(float)window_size;
+            average_data[average_index+bit_step]+=tail_sum/(float)window_size;
+            //printf("%d,%d,%d,%lld,%f,%f,CP\n",threadIdx.x,blockIdx.x,batch_num,average_index+bit_step,(head_sum/step),average_data[average_index+bit_step]);
+            //printf("%d,%d,%d,%lld,%f,%f,%f,NA\n",threadIdx.x,blockIdx.x,batch_num,average_index+bit_step,(tail_sum/step),(head_sum/step),average_data[average_index+bit_step]);
+            //printf("%d,%d,%d,O+\n",threadIdx.x,blockIdx.x,bit_sum);
+        }
+        compressed_data[output_index]=bit_sum;
+        //printf("%d,%d,%lld,O\n",threadIdx.x,blockIdx.x,output_index);
+        input_index_head+=batch_interval*step;
+        input_index_tail-=batch_interval*step;
+        output_index+=output_channel_num;
+    }
+}
+
+//对gpu函数的封装, thread_num不超过channel_num/8, step指定时间分辨率
+void compress_reflect(void *average_data_void,float *uncompressed_data_head_void, float *uncompressed_data_tail_void, void *compressed_data_void, long long int batch_interval ,long long int batch, long long int step, long long int begin_channel,long long int channel_num ,long long int window_size,long long int thread_num)
+{
+    double *average_data=(double*)average_data_void;
+    float *uncompressed_data_head=(float*)uncompressed_data_head_void;
+    //++跳过通道0
+    uncompressed_data_head++;
+    float *uncompressed_data_tail=(float*)uncompressed_data_tail_void;
+    uncompressed_data_tail++;
+    
+    //调整指针到begin_channel
+    average_data+=(begin_channel-1);
+    uncompressed_data_head+=(begin_channel-1);
+    uncompressed_data_tail+=(begin_channel-1);
+    
+    unsigned char *compressed_data=(unsigned char*)compressed_data_void;
+    long long int output_channel_num=channel_num/8;
+    dim3 compress_reflect_blocksize(thread_num,1,1);
+    dim3 compress_reflect_gridsize(output_channel_num/thread_num,1,1);
+#ifdef PRINT_INFO
+    printf("Function compress_reflect is called.\nstep=%lld, tail offset=%lld, batch=%lld, batch_interval=%lld, begin_channel=%lld, channel_num=%lld, thread_num=%lld.\n",
+           step,
+           window_size*batch_interval,
+           batch,
+           batch_interval,
+           begin_channel,
+           channel_num,
+           thread_num
+           );
+#endif
+    compress_reflect_gpu<<<compress_reflect_gridsize,compress_reflect_blocksize>>>(average_data,uncompressed_data_head,uncompressed_data_tail,compressed_data,batch_interval,batch,step,output_channel_num,window_size);
+    cudaDeviceSynchronize();
+#ifdef PRINT_INFO
+    int error=cudaGetLastError();
+    printf("Error code is %d\n",error);
+#endif
+}
 
 //以下为一些辅助的测试函数
 

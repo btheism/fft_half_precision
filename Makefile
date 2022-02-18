@@ -29,11 +29,13 @@ LINK_LIB_OPTION :=$(addprefix -l, $(LIBRARY) ) -lcufft -lfil_header_writer
 LIBRARY_WITH_PATH :=$(addsuffix .so, $(addprefix $(LIB_BIN_DIR)lib, $(LIBRARY) ) )
 
 #lists of test programs , add new test programs to here to compile them
-TEST :=test_2_channel_with_reflect test_2_channel_with_reflect_and_loop test_1_channel_with_reflect test_cufft_plan_memory_size test_half_fft de_interlace test_write_header
+#TEST :=test_2_channel_with_reflect test_2_channel_with_reflect_and_loop test_1_channel_with_reflect test_cmd_parser test_cufft_plan_memory_size test_half_fft de_interlace test_write_header
+TEST := test_half_fft test_2_channel_with_reflect
 TEST_WITH_PATH :=$(addprefix $(TEST_BIN_DIR), $(TEST) )
 
 #lists of main program
-MAIN := fft_half_2_channel fft_half_1_channel
+MAIN := fft_half_2_channel 
+#fft_half_1_channel
 MAIN_WITH_PATH :=$(addprefix $(MAIN_BIN_DIR), $(MAIN) )
 
 #list of all binary files
@@ -41,9 +43,9 @@ ALL_TARGET :=$(LIBRARY_WITH_PATH) $(TEST_WITH_PATH) $(MAIN_WITH_PATH)
 
 #define some compilers
 #NVCC_CODE_FLAG :=-gencode arch=compute_75,code=sm_75
-NVCC_LIB := nvcc --compiler-options="-fPIC -shared" --linker-options="-shared" $(NVCC_CODE_FLAG) -DPRINT_INFO
-NVCC_TEST :=nvcc --linker-options="-rpath=$(LIB_DIR_FOR_TEST_LINK)" -I $(LIB_HEADER_SRC_DIR) -L $(LIB_BIN_DIR) $(LINK_LIB_OPTION) $(NVCC_CODE_FLAG)
-NVCC_MAIN :=nvcc --linker-options="-rpath=$(LIB_DIR_FOR_MAIN_LINK)" -I $(LIB_HEADER_SRC_DIR) -L $(LIB_BIN_DIR) $(LINK_LIB_OPTION) $(NVCC_CODE_FLAG) -DWRITE_HEADER -DWRITE_DATA
+NVCC_LIB := nvcc --compiler-options="-fPIC -shared" --linker-options="-shared" $(NVCC_CODE_FLAG) -DPRINT_INFO -g
+NVCC_TEST :=nvcc --linker-options="-rpath=$(LIB_DIR_FOR_TEST_LINK)" -I $(LIB_HEADER_SRC_DIR) -L $(LIB_BIN_DIR) $(LINK_LIB_OPTION) $(NVCC_CODE_FLAG) -g
+NVCC_MAIN :=nvcc --linker-options="-rpath=$(LIB_DIR_FOR_MAIN_LINK)" -I $(LIB_HEADER_SRC_DIR) -L $(LIB_BIN_DIR) $(LINK_LIB_OPTION) $(NVCC_CODE_FLAG) -DWRITE_HEADER -DWRITE_DATA -g
 GCC_LIB :=gcc -fPIC -shared
 
 #cufft_wrapper:

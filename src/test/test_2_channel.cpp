@@ -59,8 +59,8 @@ int main(int argc, char *argv[]) {
     complex_modulus_squared_interlace(input_half,input_half,fft_length/2,1,1,batch,thread_num);
     print_data_float(input_float,0,(fft_length/2+1)*batch*2,fft_length/2+1);
     
-    //thread_num<=fft_length/2,这里减去step是为了配合compress函数
-    channels_sum(input_float,average_data,window_size-step,(double)window_size,(fft_length/2+1)*2,fft_length/2,thread_num);
+    //thread_num<=fft_length/2
+    channels_sum(input_float,average_data,window_size,(double)window_size,(fft_length/2+1)*2,fft_length/2,thread_num);
     print_data_double(average_data,0,fft_length/2,fft_length/2);
     
     //thread_num<=fft_length/2/8

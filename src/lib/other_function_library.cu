@@ -1,29 +1,33 @@
 #include <iostream>
 #include <fstream>
+#include <string>
 #include <cstring>
 #include <cuda_fp16.h>
+//#include <unistd.h>
+#include <stdlib.h>
 
-#if __GNUC__ <= 15
 
+//一个获取文件大小的函数
 #include <sys/stat.h>
-long long int GetFileSize(std::string filename)
+long long int GetFileSize(char* filename)
 {
     struct stat stat_buf;
-    int rc = stat(filename.c_str(), &stat_buf);
+    int rc = stat(filename, &stat_buf);
+    if(rc==0)
+    {
+        printf("File %s 's size is %lld.\n" , filename,(long long int)stat_buf.st_size);
+    }
+    else
+    {
+        printf("fail to open file %s , exit.\n" , filename);
+        exit(-1);
+    }
     return rc == 0 ? stat_buf.st_size : -1;
 }
 
-#else
+//读取数据的函数,其中ask_size以char为单位
 
-#include <filesystem>
-long long int GetFileSize(std::string filename)
-{
-    return std::filesystem::file_size(filename);
-}
-
-#endif
-
-void readfile(signed char *input_char,std::string * file_list,long long int file_size_list[],long long int ask_size)
+void readfile(char *input_char,char** file_list,long long int ask_size)
 {
     std::cout<<"read char data to cpu memory , size = "<<ask_size<<std::endl;
     static std::ifstream original_data;
@@ -37,17 +41,15 @@ void readfile(signed char *input_char,std::string * file_list,long long int file
     {
         if(!original_data.is_open())
         {
-            original_data.open(file_list[file_number].c_str(),std::ios::in|std::ios::binary);
+            original_data.open(file_list[file_number],std::ios::in|std::ios::binary);
             if(original_data.is_open())
             {
-                std::cout << "Succeed opening input file "<<file_list[file_number]<<"\n";
-                
-                file_remain_size=file_size_list[file_number];
-                std::cout << "File size is "<<file_remain_size<<"\n";
+                std::cout << "Succeed opening input file "<<file_list[file_number]<<std::endl;
+                file_remain_size=GetFileSize(file_list[file_number]);
             }
             else
             {
-                std::cout << "Fali to open input file "<<file_list[file_number]<<"\n";
+                std::cout << "Fali to open input file "<<file_list[file_number]<<std::endl;
             }
         }
 
@@ -65,21 +67,22 @@ void readfile(signed char *input_char,std::string * file_list,long long int file
             read_size+=file_remain_size;
             file_remain_size=0;
             original_data.close();
-            std::cout << "Close file "<<file_list[file_number]<<"\n";
+            std::cout << "Close file "<<file_list[file_number]<<std::endl;
             file_number++;
         }
     }
     
+    //假设退出程序时有未关闭的文件,可向该函数传递参数-1以关闭文件
     if(read_remain_size==-1)
     {
          if(!original_data.is_open())
          {
-             std::cout << "All input files all closed"<<file_list[file_number]<<"\n";
+             std::cout << "All input files are closed"<<file_list[file_number]<<std::endl;
          }
          else
          {
              original_data.close();
-             std::cout << "Close file "<<file_list[file_number]<<"\n";
+             std::cout << "Close file "<<file_list[file_number]<<std::endl;
          }
     }
 } 
@@ -93,10 +96,16 @@ void read_char_array(signed char *input_char,signed char * simulate_array ,long 
     //把数据从input_char复制到input_float,并分离两个通道的数据
     //cudaMemcpy(input_char_gpu,input_char_cpu,size*sizeof(signed char),cudaMemcpyHostToDevice);
     //cudaDeviceSynchronize();
-} 
+}
+
+//struct fft_half_1_channel_parameter_list 
+//{
+//    
+//}
 
 //该函数返回输入文件的总大小,便于主程序决定循环次数等参数
-long long int generate_file_list(int argc ,char *argv[],std::string file_list[],long long int file_size_list[])
+//注意，新的参数解析函数已不再使用该函数
+long long int generate_file_list(int argc ,char *argv[],char* file_list[],long long int file_size_list[])
 {
     long long int file_total_size=0;
     int file_num= argc - 1;
@@ -109,13 +118,13 @@ long long int generate_file_list(int argc ,char *argv[],std::string file_list[],
     return file_total_size;
 }
 
-void print_data_signed_char(signed char* data,long long int begin,long long int end,int break_num)
+void print_data_signed_char(char* data,long long int begin,long long int end,int break_num)
 {
     std::cout<<"Print signed char data from "<<begin<<" to "<<end<<std::endl;
     char newline=0;
     for(int i=begin;i<end;i++)
     {
-            std::cout<<i<<"\t"<<(int)*(data+i)<<"\t";
+            std::cout<<i<<"\t"<<(int)*((signed char*)data+i)<<"\t";
             newline++;
             if(newline==break_num)
             {
@@ -188,13 +197,13 @@ void print_data_double(double* data,long long int begin,long long int end,int br
         std::cout << std::endl;
 }
 
-void print_char_binary(unsigned char c) {
-    for (unsigned char i = 0; i <=7 ; i++) {
+void print_char_binary(char c) {
+    for (char i = 0; i <=7 ; i++) {
         std::cout << ((c & (1 << i))? '1' : '0');
     }
 }
 
-void print_data_binary(unsigned char* data,long long int begin,long long int end,int break_num)
+void print_data_binary(char* data,long long int begin,long long int end,int break_num)
 {
     std::cout<<"Print binary data from "<<begin<<" to "<<end<<std::endl;
     char newline=0;

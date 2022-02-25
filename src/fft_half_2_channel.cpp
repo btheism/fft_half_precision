@@ -122,7 +122,7 @@ void initialize_2_channel_parameter_list (int argc ,char **argv ,pars *par)
       };
     
     //参数的名称-地址表,用于修改参数的值
-    std::map<std::string ,void *>par_dic={
+    /*std::map<std::string ,void *>par_dic={
 
         {"output_name" ,(void*)&par->output_name},
         {"fft_length",(void*)&par->fft_length},
@@ -143,8 +143,29 @@ void initialize_2_channel_parameter_list (int argc ,char **argv ,pars *par)
         {"machine_id_in" ,(void*)&par->machine_id_in},
         {"telescope_id_in" ,(void*)&par->telescope_id_in},
         {"thread_num" ,(void*)&par->thread_num}
-    };
+    };*/
     
+    //C++98
+    std::map<std::string ,void *>par_dic;
+    par_dic.insert(std::pair<std::string ,void *>("output_name" ,(void*)&par->output_name));
+    par_dic.insert(std::pair<std::string ,void *>("fft_length",(void*)&par->fft_length));
+    par_dic.insert(std::pair<std::string ,void *>("window_size",(void*)&par->window_size));
+    par_dic.insert(std::pair<std::string ,void *>("step",(void*)&par->step));
+    par_dic.insert(std::pair<std::string ,void *>("factor_A",(void*)&par->factor_A));
+    par_dic.insert(std::pair<std::string ,void *>("factor_B",(void*)&par->factor_B));
+    par_dic.insert(std::pair<std::string ,void *>("begin_channel",(void*)&par->begin_channel));
+    par_dic.insert(std::pair<std::string ,void *>("compress_channel_num",(void*)&par->compress_channel_num));
+    par_dic.insert(std::pair<std::string ,void *>("batch_buffer_size",(void*)&par->batch_buffer_size));
+    par_dic.insert(std::pair<std::string ,void *>("tsamp",(void*)&par->tsamp));
+        
+    par_dic.insert(std::pair<std::string ,void *>("write_head" ,(void*)&par->write_head));
+    par_dic.insert(std::pair<std::string ,void *>("write_data" ,(void*)&par->write_data));
+    par_dic.insert(std::pair<std::string ,void *>("print_memory" ,(void*)&par->print_memory));
+        
+    par_dic.insert(std::pair<std::string ,void *>("source_name_in" ,(void*)&par->source_name_in));
+    par_dic.insert(std::pair<std::string ,void *>("machine_id_in" ,(void*)&par->machine_id_in));
+    par_dic.insert(std::pair<std::string ,void *>("telescope_id_in" ,(void*)&par->telescope_id_in));      par_dic.insert(std::pair<std::string ,void *>("thread_num" ,(void*)&par->thread_num));
+
     //下列参数可以自行指定数值，先进行默认初始化
     
     //规定程序进行fft变换的长度,程序会把fft_length个采样点作为一个区间进行fft变换
@@ -239,6 +260,7 @@ void initialize_2_channel_parameter_list (int argc ,char **argv ,pars *par)
                 *p_tmp=(char*)calloc(strlen(optarg),sizeof(char));
                 strcpy(*p_tmp,optarg);
                 printf("Set string parameter %s to %s \n",long_options[option_index].name ,*p_tmp);
+                break;
             default:
                 printf("Fail to find parameter %s\n" ,long_options[option_index].name);
         }

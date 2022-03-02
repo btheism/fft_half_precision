@@ -1,3 +1,4 @@
+#该程序为其他人提供的示例程序，存档在此
 from sigpyproc.Readers import FilReader as filterbank
 import numpy as np
 import sys, os

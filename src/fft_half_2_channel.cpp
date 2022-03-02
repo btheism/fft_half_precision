@@ -264,7 +264,7 @@ void initialize_2_channel_parameter_list (int argc ,char **argv ,pars *par)
                 printf("Set string parameter %s to %s \n",long_options[option_index].name ,*p_tmp);
                 break;
             default:
-                printf("Fail to find parameter %s\n" ,long_options[option_index].name);
+                printf("Fail to find parameter %s \n" ,long_options[option_index].name);
         }
     }
   
@@ -274,6 +274,12 @@ void initialize_2_channel_parameter_list (int argc ,char **argv ,pars *par)
     par->signal_length=0;
     par->file_num=0;
     par->file_list=argv+optind;
+    
+    if(optind >= argc)
+    {
+        std::cout<<"No input file , exit \n"<<std::endl;
+        exit(-1);
+    }
 
     
     for(;(optind+par->file_num)<argc;(par->file_num)++) 
@@ -320,7 +326,7 @@ void initialize_2_channel_parameter_list (int argc ,char **argv ,pars *par)
     }
     
     //计算数据被划分的区间数(即数据需要进行的fft变换的次数),双通道数据需要额外除以2,且要去除无法被step整除的部分
-    par->signal_batch=(par->signal_length/2/par->fft_length/par->step)*par->step;
+    par->signal_batch=(par->signal_length/(long long int)2/par->fft_length/par->step)*par->step;
     
     if(par->signal_batch<par->window_size)
     {
@@ -401,12 +407,16 @@ int fft_half_2_channel(pars *par)
     input_float=(float*)input_half;
     
     //定义两个之后会经常用到的内存偏移量
-    long long int half_window_size=(par->fft_length+2)*2*par->window_size;
-    long long int float_window_size=(par->fft_length/2+1)*2*par->window_size;
-    long long int float_add_size=(par->fft_length/2+1)*2*par->per_batch;
+    long long int half_window_size=(par->fft_length+(long long int)2)*(long long int)2*par->window_size;
+    long long int float_window_size=(par->fft_length/(long long int)2+(long long int)1)*(long long int)2*par->window_size;
+    long long int float_add_size=(par->fft_length/(long long int)2+(long long int)1)*(long long int)2*par->per_batch;
     //根据以上偏移量计算指针
+    
+    //第一次读取数据后,后续读入数据的位置
     short *input_half_add=input_half+half_window_size;
     float *input_float_add=input_float+float_window_size;
+    
+    //每次压缩循环过后,把从该处开始的数据复制到缓冲区头部
     float *input_float_to_head=input_float+float_add_size;
     
     //计算填满一个window需要读取的原始数据大小
@@ -416,12 +426,10 @@ int fft_half_2_channel(pars *par)
     long long int add_char_size=par->fft_length*par->per_batch*(long long int)2;
     
     //指向fft变换后的数据末尾的倒数第一个区间的指针,便于之后对尾部数据进行反射
-    float* input_float_reflect_tail=input_float_add-(par->fft_length/2+1)*2;
+    float* input_float_reflect_tail=input_float_add-((par->fft_length/(long long int)2+(long long int)1)*(long long int)2);
     //指向需要反射的数据的头部的指针
     float* input_float_reflect_head=input_float;
- 
-    //long long int buffer_char_size=(fft_length+2)*batch_buffer_size*2
-    
+     
     //执行程序
     if(par->write_head)
     {
@@ -447,7 +455,7 @@ int fft_half_2_channel(pars *par)
         }
         else
         {
-            std::cout << "Fail to open output fft file "<<par->output_name<<std::endl;
+            std::cout << "Fail to open output fft file"<<par->output_name<<std::endl;
         }
     }
     
@@ -589,11 +597,16 @@ int fft_half_2_channel(pars *par)
     readfile(input_char_cpu,par->file_list,-1);
     
     //释放内存
-    cudaFree(input_char_cpu);
+    cudaFreeHost(input_char_cpu);
+    printf("free memory of input_char_cpu\n");
     cudaFree(input_char);
+    printf("free memory of input_char\n");
     cudaFree(input_half);
+    printf("free memory of input_half\n");
     cudaFree(average_data);
+    printf("free memory of average_data\n");
     cudaFree(compressed_data);
+    printf("free memory of compressed_data\n");
     
     return 0;
 }

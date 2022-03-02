@@ -30,11 +30,11 @@ LIBRARY_WITH_PATH :=$(addsuffix .so, $(addprefix $(LIB_BIN_DIR)lib, $(LIBRARY) )
 
 #lists of test programs , add new test programs to here to compile them
 #TEST :=test_2_channel_with_reflect test_2_channel_with_reflect_and_loop test_1_channel_with_reflect test_cmd_parser test_cufft_plan_memory_size test_half_fft de_interlace test_write_header
-TEST := test_half_fft test_2_channel_with_reflect
+TEST := test_half_fft test_2_channel_with_reflect de_interlace
 TEST_WITH_PATH :=$(addprefix $(TEST_BIN_DIR), $(TEST) )
 
 #lists of main program
-MAIN := fft_half_2_channel 
+MAIN := fft_half_2_channel fft_half_1_channel
 #fft_half_1_channel
 MAIN_WITH_PATH :=$(addprefix $(MAIN_BIN_DIR), $(MAIN) )
 

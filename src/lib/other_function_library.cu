@@ -104,16 +104,12 @@ void read_char_array(signed char *input_char,signed char * simulate_array ,long 
 //}
 
 //该函数返回输入文件的总大小,便于主程序决定循环次数等参数
-//注意，新的参数解析函数已不再使用该函数
-long long int generate_file_list(int argc ,char *argv[],char* file_list[],long long int file_size_list[])
+long long int GetFilelistSize(int file_num , char** file_list)
 {
     long long int file_total_size=0;
-    int file_num= argc - 1;
     for (int i = 0; i < file_num; i++){
-        file_list[i] = argv[i+1];
         std::cout<<"Input file "<<i<<" is "<<file_list[i]<<std::endl;
-        file_size_list[i]=GetFileSize(file_list[i]);
-        file_total_size+=file_size_list[i];
+        file_total_size+=GetFileSize(file_list[i]);
     }
     return file_total_size;
 }

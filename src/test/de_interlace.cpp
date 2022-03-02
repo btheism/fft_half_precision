@@ -9,21 +9,22 @@
 
 int main(int argc, char *argv[]) {
 
-    //生成文件列表
-    std::string file_list[argc-1];
-    long long int file_size_list[argc-1];
-    //从generate_file_list函数得到输入数据的总长度
-    long long int signal_length=generate_file_list(argc, argv, file_list, file_size_list); 
+    //计算输入数据的总长度
+    char** file_list=argv+1;
+    long long int signal_length=GetFilelistSize(argc-1, file_list);
     std::cout<<"signal length = "<<signal_length<<std::endl;
+    
+    //设置缓冲区大小
     long long int cache_size=1024*1024*1024;
     
-    signed char *input_char, *output_char_A, *output_char_B;
+    char *input_char, *output_char_A, *output_char_B;
     cudaMallocHost((void**)&input_char,sizeof(signed char)*cache_size*sizeof(char));
     cudaMallocHost((void**)&output_char_A,sizeof(signed char)*cache_size/2*sizeof(char));
     cudaMallocHost((void**)&output_char_B,sizeof(signed char)*cache_size/2*sizeof(char));
     
-    std::string output_A = file_list[0].substr(0, file_list[0].length() - 4) + "_A.dat";
-    std::string output_B = file_list[0].substr(0, file_list[0].length() - 4) + "_B.dat";
+    std::string first_input_name=std::string(file_list[0]);
+    std::string output_A = first_input_name.substr(0, first_input_name.length() - 4) + "_A.dat";
+    std::string output_B = first_input_name.substr(0, first_input_name.length() - 4) + "_B.dat";
     std::ofstream output_A_stream(output_A,std::ios::trunc|std::ios::binary);
     std::ofstream output_B_stream(output_B,std::ios::trunc|std::ios::binary);
     
@@ -38,7 +39,7 @@ int main(int argc, char *argv[]) {
     {   
         input_offset=0;
         output_offset=0;
-        readfile(input_char,file_list,file_size_list,cache_size);
+        readfile(input_char,file_list,cache_size);
         while(input_offset<cache_size)
         {
              output_char_A[output_offset]=input_char[input_offset];
@@ -57,7 +58,7 @@ int main(int argc, char *argv[]) {
     {
         input_offset=0;
         output_offset=0;
-        readfile(input_char,file_list,file_size_list,remain_length);
+        readfile(input_char,file_list,remain_length);
         while(input_offset<remain_length)
         {
              
@@ -73,7 +74,7 @@ int main(int argc, char *argv[]) {
         read_length+=remain_length;
         std::cout<<"read length = "<<read_length<<std::endl;
     }
-    readfile(input_char,file_list,file_size_list,-1);
+    readfile(input_char,file_list,-1);
     output_A_stream.close();
     output_B_stream.close();
 }

@@ -434,7 +434,8 @@ int fft_half_2_channel(pars *par)
     if(par->write_head)
     {
         //该函数会根据传入的文件名创建一个新文件,写入并关闭
-        write_header(par->output_name,par->source_name_in, 8, 21, par->compress_channel_num, 1, 1, 1, 58849., 0.0,  par->tsamp*par->fft_length*par->step, 1.0/par->tsamp/1.0e6*((par->begin_channel+par->compress_channel_num-1)/par->fft_length), -1.0/par->tsamp/1.0e6/par->fft_length, 0.0, 0.0, 0.0, 0.0);
+        //write_header(par->output_name,par->source_name_in, 8, 21, par->compress_channel_num, 1, 1, 1, 58849., 0.0,  par->tsamp*par->fft_length*par->step, 1.0/par->tsamp/1.0e6*((par->begin_channel+par->compress_channel_num-1)/par->fft_length), -1.0/par->tsamp/1.0e6/par->fft_length, 0.0, 0.0, 0.0, 0.0);
+        write_header(par->output_name,par->source_name_in, 8, 21, par->compress_channel_num, 1, 1, 1, 58849., 0.0,  par->tsamp*par->fft_length*par->step, 1.0/par->tsamp/1.0e6/par->step, 1.0/par->tsamp/1.0e6/par->fft_length, 0.0, 0.0, 0.0, 0.0);
         printf("Succeed writing file header .\n");
     }
     if(par->write_data)

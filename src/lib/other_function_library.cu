@@ -4,7 +4,6 @@
 #include <cstring>
 #include <cuda_fp16.h>
 //#include <unistd.h>
-#include <stdlib.h>
 
 
 //一个获取文件大小的函数

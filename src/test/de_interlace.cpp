@@ -18,15 +18,15 @@ int main(int argc, char *argv[]) {
     long long int cache_size=1024*1024*1024;
     
     char *input_char, *output_char_A, *output_char_B;
-    cudaMallocHost((void**)&input_char,sizeof(signed char)*cache_size*sizeof(char));
-    cudaMallocHost((void**)&output_char_A,sizeof(signed char)*cache_size/2*sizeof(char));
-    cudaMallocHost((void**)&output_char_B,sizeof(signed char)*cache_size/2*sizeof(char));
+    gpuErrchk(cudaMallocHost((void**)&input_char,sizeof(signed char)*cache_size*sizeof(char)));
+    gpuErrchk(cudaMallocHost((void**)&output_char_A,sizeof(signed char)*cache_size/2*sizeof(char)));
+    gpuErrchk(cudaMallocHost((void**)&output_char_B,sizeof(signed char)*cache_size/2*sizeof(char)));
     
     std::string first_input_name=std::string(file_list[0]);
     std::string output_A = first_input_name.substr(0, first_input_name.length() - 4) + "_A.dat";
     std::string output_B = first_input_name.substr(0, first_input_name.length() - 4) + "_B.dat";
-    std::ofstream output_A_stream(output_A,std::ios::trunc|std::ios::binary);
-    std::ofstream output_B_stream(output_B,std::ios::trunc|std::ios::binary);
+    std::ofstream output_A_stream(output_A.c_str(),std::ios::trunc|std::ios::binary);
+    std::ofstream output_B_stream(output_B.c_str(),std::ios::trunc|std::ios::binary);
     
     
     long long int read_length=0;

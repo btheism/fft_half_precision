@@ -23,18 +23,18 @@ MAIN_BIN_DIR :=bin/
 HEADER :=$(wildcard $(LLIB_HEADER_SRC_DIR)/*)
 
 #lists of library
-LIBRARY :=cufft_wrapper kernel_wrapper other_function_library psrdada_wrapper
+LIBRARY :=cufft_wrapper kernel_wrapper other_function_library
 #LINK_LIB_OPTION :=$(addprefix -l, $(LIBRARY) ) -lcufft
-LINK_LIB_OPTION :=$(addprefix -l, $(LIBRARY) ) -lcufft -lfil_header_writer -lpsrdada -lgomp -lpthread
+LINK_LIB_OPTION :=$(addprefix -l, $(LIBRARY) ) -lcufft -lfil_header_writer
 LIBRARY_WITH_PATH :=$(addsuffix .so, $(addprefix $(LIB_BIN_DIR)lib, $(LIBRARY) ) )
 
 #lists of test programs , add new test programs to here to compile them
 #TEST :=test_2_channel_with_reflect test_2_channel_with_reflect_and_loop test_1_channel_with_reflect test_cmd_parser test_cufft_plan_memory_size test_half_fft de_interlace test_write_header
-TEST := test_half_fft test_2_channel_with_reflect de_interlace
+TEST := test_half_fft test_2_channel_with_reflect de_interlace test_cufft_plan_memory_size
 TEST_WITH_PATH :=$(addprefix $(TEST_BIN_DIR), $(TEST) )
 
 #lists of main program
-MAIN := fft_half_1_net
+MAIN := fft_half_2_channel fft_half_1_channel
 #fft_half_1_channel
 MAIN_WITH_PATH :=$(addprefix $(MAIN_BIN_DIR), $(MAIN) )
 
@@ -88,4 +88,6 @@ gitignore: .gitignore
 	for name in $(ALL_TARGET);do echo $${name}>>.gitignore;done
 	echo $(LIB_BIN_DIR)libfil_header_writer.so>>.gitignore
 
-.PHONY: main library test clean gitignore fil_header_writer .gitignore 
+.PHONY: main library test clean gitignore fil_header_writer .gitignore
+	
+	

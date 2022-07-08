@@ -10,7 +10,8 @@
 #include<regex.h>
 #include <getopt.h>
 
-#include <other_function_library.hpp>
+#include <cuda_macros.hpp>
+#include <io_wrapper.hpp>
 #include <kernal_wrapper.hpp>
 #include <cufft_wrapper.hpp>
 #include<filheader.h>

@@ -1,0 +1,27 @@
+fft_length : 16384
+stream_number : 2
+input_type_flag : 1
+
+begin_channel : 1 #min value is 1(not support 0)
+compress_channel_num : 8192
+window_size : 2048
+batch_buffer_size : 4096
+step : 4
+
+write_head : 0
+print_memory : 0 
+write_data : 1
+
+tsamp : 8e-10
+machine_id_in : 0
+telescope_id_in : 0
+
+#set to 0 to let program auto select a number
+thread_num : 0
+
+#cannot be empty
+#if output_name and file name stream are set to relative path , they are considered relative to current shell path
+output_name : /tmp/16bit.fil
+source_name_in : rawdata
+
+stream : /data2/zhuww/fft_half/21CMA_16bit_test.dat

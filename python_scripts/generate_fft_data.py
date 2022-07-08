@@ -1,100 +1,58 @@
+#读取一个实际的数据文件,在特定频率段注入周期性频率信号
+#生成的是单通道数据
+import argparse
 import sys
 import os
 import random
 import struct
 import numpy as np
-read_file=open(sys.argv[1],'rb')
-write_file=open(sys.argv[1]+"_test.dat", 'wb')
-fftlength=131072
-#生成单次batch数据
-a=[]
-i=0
-while i<fftlength:
-    signal_a=0
-    signal_a+=np.cos(2 * np.pi * i / fftlength * 39000)
-    signal_a+=np.cos(2 * np.pi * i / fftlength * 39001)
-    signal_a+=np.cos(2 * np.pi * i / fftlength * 39002)
-    signal_a+=np.sin(2 * np.pi * i / fftlength * 39003)
-    signal_a+=np.cos(2 * np.pi * i / fftlength * 39004)
-    signal_a+=np.sin(2 * np.pi * i / fftlength * 39005)
-    signal_a+=np.cos(2 * np.pi * i / fftlength * 39006)
-    signal_a+=np.sin(2 * np.pi * i / fftlength * 39007)
-    signal_a+=np.sin(2 * np.pi * i / fftlength * 41008)
-    signal_a+=np.sin(2 * np.pi * i / fftlength * 41009)
-    signal_a+=np.sin(2 * np.pi * i / fftlength * 41012)
-    signal_a+=np.sin(2 * np.pi * i / fftlength * 41013)
-    signal_a=int((signal_a)*3)
-    # 因为原始数据有两个通道，故这里需要写两次
-    a.append(signal_a)
-    a.append(signal_a)
-    i+=1
 
-b=[]
-i=0
-while i<fftlength:
-    #signal_b=np.sin(2*np.pi*i/fftlength*55000)
-    signal_b=int(0)
-    # 因为原始数据有两个通道，故这里需要写两次
-    b.append(signal_b)
-    b.append(signal_b)
-    i+=1
+parser = argparse.ArgumentParser(description='Process some options.')
 
-a=np.array(a,dtype='uint8')
-b=np.array(b,dtype='uint8')
-#写入多个batch
-generated_data=np.array([],dtype='uint8')
-total=9765
-data_write=0
-'''
-while data_write<total-400:
-    data_a=random.randint(30, 200)
-    data_b=random.randint(30, 200)
-    tmp = 0
-    while tmp<data_a:
-        original_data = np.array(struct.unpack("B" * (fftlength * 2), read_file.read(fftlength * 2)), dtype='uint8')
-        outputdata=original_data+b
-        write_file.write(struct.pack('B' * (fftlength*2), *outputdata))
-        tmp+=1
-    tmp = 0
-    while tmp <data_b:
-        original_data = np.array(struct.unpack("B" * (fftlength * 2), read_file.read(fftlength * 2)), dtype='uint8')
-        outputdata = original_data+a
-        write_file.write(struct.pack('B' * (fftlength * 2), *outputdata))
-        tmp+=1
-    data_write=data_write+data_a+data_b
+parser.add_argument('--file', type=str, help="输入文件路径")
+parser.add_argument('--freq', type=str, help="注入的信号的频率列表,语法为f1,f2,f3,... ,不得有空格")
+parser.add_argument('--fft_length', type=int, help="fft变换的长度")
+parser.add_argument('--time_interval', type=str, help="注入信号的间隔,以fft的长度为单位,语法与freq相同,奇数位表示有信号,偶数位表示无信号")
+parser.add_argument('--input_type', type=str, help="信号的类型,b表示8位有符号数,h表示16位有符号数,大写表示无符号数")
+args = parser.parse_args()
 
-tmp = 0
-while tmp<total-data_write:
-    original_data = np.array(struct.unpack("B" * (fftlength * 2), read_file.read(fftlength * 2)), dtype='uint8')
-    outputdata=original_data+b
-    write_file.write(struct.pack('B' * (fftlength*2), *outputdata))
-    tmp+=1
-'''
-addnum = 100
-while addnum<=400:
-    tmp=0
-    while tmp<addnum:
-        #"B" * (fftlength * 2)是字符串运算，输出一个包含(fftlength * 2)个B的字符串
-        original_data = np.array(struct.unpack("B" * (fftlength * 2), read_file.read(fftlength * 2)), dtype='uint8')
-        outputdata=(original_data+a)%256
-        #此处的乘号是starred expression，会被python迭代展开为多个参数
-        write_file.write(struct.pack('B' * (fftlength*2), *outputdata))
-        tmp+=1
-    tmp = 0
-    while tmp <20:
-        original_data = np.array(struct.unpack("B" * (fftlength * 2), read_file.read(fftlength * 2)), dtype='uint8')
-        outputdata = (original_data+b)%256
-        write_file.write(struct.pack('B' * (fftlength * 2), *outputdata))
-        tmp+=1
-    data_write=data_write+addnum+20;
-    addnum+=20
-    print("data_write="+str(data_write))
-tmp = 0
-while tmp<total-data_write:
-    original_data = np.array(struct.unpack("B" * (fftlength * 2), read_file.read(fftlength * 2)), dtype='uint8')
-    outputdata=original_data+b
-    write_file.write(struct.pack('B' * (fftlength*2), *outputdata))
-    tmp+=1
+freq=[int(num) for num in args.freq.split(',')]
+time_interval=[int(num) for num in args.time_interval.split(',')]
+
+read_file=open(args.file,'rb')
+write_file=open(args.file+"_test.dat", 'wb')
+
+input_type_size=np.dtype(args.input_type).itemsize
+
+#判断文件长度是否够用
+file_batch = os.path.getsize(args.file)//args.fft_length//input_type_size
+if file_batch<sum(time_interval):
+    print("input file is too small , exit")
+    sys.exit(-1)
+
+#生成单个fft_length长度的数据
+signal_single_fft=np.zeros([args.fft_length],dtype=args.input_type)
+
+for sample_point in range(args.fft_length):
+    signal=0.0
+    for freq_seq in range(len(freq)):
+        signal+=np.cos(2.0 * np.pi * sample_point * freq[freq_seq]/ args.fft_length)
+    
+    signal=signal/len(freq)*(2**(input_type_size*8-2))
+    signal_single_fft[sample_point]+=signal;
+#print("generated single fft data is:")
+#print(signal_single_fft)
+
+for interval_serial in range(len(time_interval)):
+    #如果interval是0的话会直接跳过
+    for batch_serial in range(time_interval[interval_serial]):
+        output_data=np.frombuffer(read_file.read(args.fft_length*input_type_size),dtype=args.input_type)
+        if(interval_serial%2==0):
+            #把生成的信号加在原始数据上
+            output_data = output_data+signal_single_fft
+
+        #写入文件
+        write_file.write(output_data.tobytes())
 
 read_file.close()
 write_file.close()

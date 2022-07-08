@@ -10,13 +10,14 @@
 #include<regex.h>
 #include <getopt.h>
 
-#include <other_function_library.hpp>
+#include <cuda_macros.hpp>
+#include <io_wrapper.hpp>
 #include <kernal_wrapper.hpp>
 #include <cufft_wrapper.hpp>
 #include<filheader.h>
 
-//定义了fft_half_1_channel程序所需的参数表,参数的功能在初始化函数initialize_2_channel_parameter_list中有详细说名
-struct fft_half_1_channel_parameter_list 
+//定义了fft_half_2_channel程序所需的参数表,参数的功能在初始化函数initialize_2_channel_parameter_list中有详细说名
+struct fft_half_2_channel_parameter_list 
 {
     //####以下参量根据输入的文件直接产生####
     
@@ -35,6 +36,8 @@ struct fft_half_1_channel_parameter_list
     long long int fft_length;
     long long int window_size;
     long long int step;
+    float factor_A;
+    float factor_B;
     long long int begin_channel;
     long long int compress_channel_num;
     long long int batch_buffer_size;
@@ -61,7 +64,7 @@ struct fft_half_1_channel_parameter_list
 
 };
 
-typedef struct fft_half_1_channel_parameter_list pars;
+typedef struct fft_half_2_channel_parameter_list pars;
 
 void generate_source_name_in(char* source_name_in,char* file_name)
 {
@@ -78,14 +81,32 @@ void generate_source_name_in(char* source_name_in,char* file_name)
     else
     {
         //这个函数竟然不会自动在字符串后面补0!必须使用calloc分配字符串空间
-        strncpy(source_name_in,file_name,match_location[0].rm_so);
+        strncpy(source_name_in , file_name , match_location[0].rm_so);
         
     }
     regfree(&match_exp);
 }
 
-//该函数解析命令行传递给fft_half_1_channel程序的参数列表，设置程序的各项参数
-void initialize_1_channel_parameter_list (int argc ,char **argv ,pars *par)
+void generate_output_name(char* output_name,char* file_name)
+{
+    regex_t match_exp;
+    regmatch_t match_location[1];
+    size_t nmatch=1;
+    regcomp (&match_exp, ".dat$",0);
+    if(regexec(&match_exp , file_name , nmatch , match_location , 0)==REG_NOMATCH)
+    {
+        printf("Fail to set output_name by input file name ,output_name is set to first file name + .fil\n");
+    }
+    else
+    {
+        strncpy(output_name , file_name , match_location[0].rm_so);
+        strcat(output_name,".fil");
+    }
+    regfree(&match_exp);
+}
+
+//该函数解析命令行传递给fft_half_2_channel程序的参数列表，设置程序的各项参数
+void initialize_2_channel_parameter_list (pars *par , int argc ,char **argv) 
 {
     int option_index;
     int par_type;
@@ -98,6 +119,8 @@ void initialize_1_channel_parameter_list (int argc ,char **argv ,pars *par)
           {"fft_length" ,required_argument ,NULL,'l'},
           {"window_size" ,required_argument ,NULL,'l'},
           {"step" ,required_argument ,NULL,'l'},
+          {"factor_A", required_argument, NULL, 'f'},
+          {"factor_B",  required_argument, NULL, 'f'},
           {"begin_channel" ,required_argument ,NULL, 'l'},
           {"compress_channel_num" ,required_argument ,NULL, 'l'},
           {"batch_buffer_size" ,required_argument ,NULL, 'l'},
@@ -143,12 +166,14 @@ void initialize_1_channel_parameter_list (int argc ,char **argv ,pars *par)
         {"thread_num" ,(void*)&par->thread_num}
     };*/
     
-    //C++98
+    //C++98风格
     std::map<std::string ,void *>par_dic;
     par_dic.insert(std::pair<std::string ,void *>("output_name" ,(void*)&par->output_name));
     par_dic.insert(std::pair<std::string ,void *>("fft_length",(void*)&par->fft_length));
     par_dic.insert(std::pair<std::string ,void *>("window_size",(void*)&par->window_size));
     par_dic.insert(std::pair<std::string ,void *>("step",(void*)&par->step));
+    par_dic.insert(std::pair<std::string ,void *>("factor_A",(void*)&par->factor_A));
+    par_dic.insert(std::pair<std::string ,void *>("factor_B",(void*)&par->factor_B));
     par_dic.insert(std::pair<std::string ,void *>("begin_channel",(void*)&par->begin_channel));
     par_dic.insert(std::pair<std::string ,void *>("compress_channel_num",(void*)&par->compress_channel_num));
     par_dic.insert(std::pair<std::string ,void *>("batch_buffer_size",(void*)&par->batch_buffer_size));
@@ -174,11 +199,16 @@ void initialize_1_channel_parameter_list (int argc ,char **argv ,pars *par)
     //合并的采样点数量(若step=4,则程序会把时间上相邻的4个区间的功率谱相加)
     par->step=4;
     
+    //两个通道的比例系数(程序在合并A通道和B通道的功率谱时,会分别对A通道和B通道的数据乘以相应的比例系数再相加)
+    par->factor_A=1.0;
+    par->factor_B=2.0;
+    
     //输出结果的起始频率通道序号
     par->begin_channel=par->fft_length/4;
     
     //输出的结果包含的通道数,必须能被8整除(因为每8个相邻通道被压缩到了一个字节)
     par->compress_channel_num=par->fft_length/4;
+    
     
     //规定可用缓冲区的大小,单位为fft区间长度的二倍,若规定fft_length=16,batch_buffer_size=8,则程序会分配16*8*2=256字节的缓冲区(之所以乘以系数2是因为数据有两个通道)
     //该大小由gpu的显存决定,太大会导致程序运行失败,缓冲区越大,程序一次性进行的fft可压缩的数据就越多
@@ -203,6 +233,7 @@ void initialize_1_channel_parameter_list (int argc ,char **argv ,pars *par)
     par->output_name=NULL;
     par->source_name_in==NULL;
     par->thread_num=0;
+    
     
     //利用命令行选项第二次初始化参数
     
@@ -252,7 +283,7 @@ void initialize_1_channel_parameter_list (int argc ,char **argv ,pars *par)
                 printf("Set string parameter %s to %s \n",long_options[option_index].name ,*p_tmp);
                 break;
             default:
-                printf("Fail to find parameter %s\n" ,long_options[option_index].name);
+                printf("Fail to find parameter %s \n" ,long_options[option_index].name);
         }
     }
   
@@ -262,6 +293,12 @@ void initialize_1_channel_parameter_list (int argc ,char **argv ,pars *par)
     par->signal_length=0;
     par->file_num=0;
     par->file_list=argv+optind;
+    
+    if(optind >= argc)
+    {
+        std::cout<<"No input file , exit \n"<<std::endl;
+        exit(-1);
+    }
 
     
     for(;(optind+par->file_num)<argc;(par->file_num)++) 
@@ -277,20 +314,7 @@ void initialize_1_channel_parameter_list (int argc ,char **argv ,pars *par)
     if(par->output_name==NULL)
         {
             par->output_name=(char*)calloc(strlen(par->file_list[0])+10,sizeof(char));
-            regex_t match_exp;
-            regmatch_t match_location[1];
-            size_t nmatch=1;
-            regcomp (&match_exp, ".dat$",0);
-            if(regexec(&match_exp,(par->file_list)[0],nmatch ,match_location,0)==REG_NOMATCH)
-            {
-                printf("Fail to set output_name by input file name ,output_name is set to first file name + .fil\n");
-            }
-            else
-            {
-                strncpy(par->output_name,par->file_list[0],match_location[0].rm_so);
-                strcat(par->output_name,".fil");
-            }
-            regfree(&match_exp);
+            generate_output_name(par->output_name,(par->file_list)[0]);
         }
     if(par->source_name_in==NULL)
         {
@@ -308,7 +332,7 @@ void initialize_1_channel_parameter_list (int argc ,char **argv ,pars *par)
     }
     
     //计算数据被划分的区间数(即数据需要进行的fft变换的次数),双通道数据需要额外除以2,且要去除无法被step整除的部分
-    par->signal_batch=(par->signal_length/par->fft_length/par->step)*par->step;
+    par->signal_batch=(par->signal_length/(long long int)2/par->fft_length/par->step)*par->step;
     
     if(par->signal_batch<par->window_size)
     {
@@ -326,7 +350,7 @@ void initialize_1_channel_parameter_list (int argc ,char **argv ,pars *par)
     par->remain_batch=par->signal_batch-par->compress_num*par->per_batch-par->window_size;
 }
 
-void print_1_channel_parameter_list(pars *par)
+void print_2_channel_parameter_list(pars *par)
 {
     std::cout<<"output file = "<<par->output_name<<std::endl;
     std::cout<<"fft length = "<<par->fft_length<<std::endl;
@@ -337,7 +361,9 @@ void print_1_channel_parameter_list(pars *par)
     std::cout<<"batch buffer size = "<<par->batch_buffer_size<<std::endl;
     std::cout<<"per batch ="<<par->per_batch<<std::endl;
     std::cout<<"compress num = "<<par->compress_num<<std::endl;
+    std::cout<<"remain batch = "<<par->remain_batch<<std::endl;
     std::cout<<"source_name_in = "<<par->source_name_in<<std::endl;
+    std::cout<<"compress num = "<<par->compress_num<<std::endl;
     std::cout<<"remain batch = "<<par->remain_batch<<std::endl;
     std::cout<<"write_head = "<<par->write_head<<std::endl;
     std::cout<<"write_data = "<<par->write_data<<std::endl;
@@ -345,7 +371,7 @@ void print_1_channel_parameter_list(pars *par)
     
 }
 
-int fft_half_1_channel(pars *par)
+int fft_half_2_channel(pars *par)
 {
     //一些指针,之后为这些指针分配空间
     char *input_char_cpu;
@@ -358,8 +384,8 @@ int fft_half_1_channel(pars *par)
     //计算需要为程序分配的内存空间大小(
     
     //根据对batch_buffer_size的要求,per_batch>=window_size
-    long long int input_char_size=par->fft_length*par->per_batch;
-    long long int input_half_size=(par->fft_length+(long long int)2)*par->batch_buffer_size;
+    long long int input_char_size=par->fft_length*par->per_batch*(long long int)2;
+    long long int input_half_size=(par->fft_length+(long long int)2)*par->batch_buffer_size*(long long int)2;
     long long int input_float_size=input_half_size/(long long int)2;
     long long int average_data_size=par->fft_length/(long long int)2;
     long long int compressed_data_size=par->compress_channel_num/(long long int)8*par->per_batch/par->step;
@@ -368,29 +394,28 @@ int fft_half_1_channel(pars *par)
     std::ofstream output_stream;
     
     //分配cpu的内存
-    
-    gpuErrchk(cudaMallocHost((void**)&input_char_cpu,sizeof(char)*input_char_size));
+    cudaMallocHost((void**)&input_char_cpu,sizeof(char)*input_char_size);
     if(par->print_memory)
     {
         //所有内存均为unified memory
-        gpuErrchk(cudaMallocManaged((void**)&input_char,sizeof(char)*input_char_size));
-        gpuErrchk(cudaMallocManaged((void**)&input_half,sizeof(short)*input_half_size));
-        gpuErrchk(cudaMallocManaged((void**)&compressed_data,sizeof(char)*compressed_data_size));
-        gpuErrchk(cudaMallocManaged((void**)&average_data,sizeof(double)*average_data_size));
+        cudaMallocManaged((void**)&input_char,sizeof(char)*input_char_size);
+        cudaMallocManaged((void**)&input_half,sizeof(short)*input_half_size);
+        cudaMallocManaged((void**)&compressed_data,sizeof(char)*compressed_data_size);
+        cudaMallocManaged((void**)&average_data,sizeof(double)*average_data_size);
     }
     else
     {
-        gpuErrchk(cudaMalloc((void**)&input_char,sizeof(char)*input_char_size));
-        gpuErrchk(cudaMalloc((void**)&input_half,sizeof(short)*input_half_size));
-        gpuErrchk(cudaMalloc((void**)&average_data,sizeof(double)*average_data_size));
-        gpuErrchk(cudaMallocManaged((void**)&compressed_data,sizeof(char)*compressed_data_size));
+        cudaMalloc((void**)&input_char,sizeof(char)*input_char_size);
+        cudaMalloc((void**)&input_half,sizeof(short)*input_half_size);
+        cudaMalloc((void**)&average_data,sizeof(double)*average_data_size);
+        cudaMallocManaged((void**)&compressed_data,sizeof(char)*compressed_data_size);
     }
     input_float=(float*)input_half;
     
     //定义两个之后会经常用到的内存偏移量
-    long long int half_window_size=(par->fft_length+(long long int)2)*par->window_size;
-    long long int float_window_size=(par->fft_length/(long long int)2+(long long int)1)*par->window_size;
-    long long int float_add_size=(par->fft_length/(long long int)2+(long long int)1)*par->per_batch;
+    long long int half_window_size=(par->fft_length+(long long int)2)*(long long int)2*par->window_size;
+    long long int float_window_size=(par->fft_length/(long long int)2+(long long int)1)*(long long int)2*par->window_size;
+    long long int float_add_size=(par->fft_length/(long long int)2+(long long int)1)*(long long int)2*par->per_batch;
     //根据以上偏移量计算指针
     
     //第一次读取数据后,后续读入数据的位置
@@ -401,21 +426,22 @@ int fft_half_1_channel(pars *par)
     float *input_float_to_head=input_float+float_add_size;
     
     //计算填满一个window需要读取的原始数据大小
-    long long int window_char_size=par->fft_length*par->window_size;
+    long long int window_char_size=par->fft_length*par->window_size*(long long int)2;
     
     //计算填满缓冲区除去window后需要读取的原始数据大小(即每次需要追加读取的数据量)
-    long long int add_char_size=par->fft_length*par->per_batch;
+    long long int add_char_size=par->fft_length*par->per_batch*(long long int)2;
     
     //指向fft变换后的数据末尾的倒数第一个区间的指针,便于之后对尾部数据进行反射
-    float* input_float_reflect_tail=input_float_add-(par->fft_length/(long long int)2+(long long int)1);
+    float* input_float_reflect_tail=input_float_add-((par->fft_length/(long long int)2+(long long int)1)*(long long int)2);
     //指向需要反射的数据的头部的指针
     float* input_float_reflect_head=input_float;
-    
+     
     //执行程序
     if(par->write_head)
     {
         //该函数会根据传入的文件名创建一个新文件,写入并关闭
-        write_header(par->output_name,par->source_name_in, 8, 21, par->compress_channel_num, 1, 1, 1, 58849., 0.0,  par->tsamp*par->fft_length*par->step, 1.0/par->tsamp/1.0e6*((par->begin_channel+par->compress_channel_num-1)/par->fft_length), -1.0/par->tsamp/1.0e6/par->fft_length, 0.0, 0.0, 0.0, 0.0);
+        //write_header(par->output_name,par->source_name_in, 8, 21, par->compress_channel_num, 1, 1, 1, 58849., 0.0,  par->tsamp*par->fft_length*par->step, 1.0/par->tsamp/1.0e6*((par->begin_channel+par->compress_channel_num-1)/par->fft_length), -1.0/par->tsamp/1.0e6/par->fft_length, 0.0, 0.0, 0.0, 0.0);
+        write_header(par->output_name,par->source_name_in, 8, 21, par->compress_channel_num, 1, 1, 1, 58849., 0.0,  par->tsamp*par->fft_length*par->step, 1.0/par->tsamp/1.0e6/par->step, 1.0/par->tsamp/1.0e6/par->fft_length, 0.0, 0.0, 0.0, 0.0);
         printf("Succeed writing file header .\n");
     }
     if(par->write_data)
@@ -436,30 +462,30 @@ int fft_half_1_channel(pars *par)
         }
         else
         {
-            std::cout << "Fail to open output fft file "<<par->output_name<<std::endl;
+            std::cout << "Fail to open output fft file"<<par->output_name<<std::endl;
         }
     }
     
     readfile(input_char_cpu,par->file_list,window_char_size);
     printf("copy input char to gpu memory\n");
     cudaMemcpy(input_char,input_char_cpu,window_char_size,cudaMemcpyHostToDevice);
-    char2float(input_char,input_half,par->fft_length,par->window_size,par->thread_num);
+    char2float_interlace(input_char,input_half,par->fft_length,par->window_size,par->thread_num);
     
     if(par->print_memory)
     {print_data_half(input_half,0,input_half_size,par->fft_length+2);}
     
-    fft_1d_half(input_half,input_half,par->fft_length,par->window_size);
+    fft_1d_half(input_half,input_half,par->fft_length,par->window_size*2);
     
     if(par->print_memory)
     {print_data_half(input_half,0,input_half_size,par->fft_length+2);}
     
-    complex_modulus_squared(input_half,input_half,par->fft_length/2,par->window_size,par->thread_num);
+    complex_modulus_squared_interlace(input_half,input_half,par->fft_length/2,par->factor_A,par->factor_B,par->window_size,par->thread_num);
     
     if(par->print_memory)
     {print_data_float(input_float,0,input_float_size,par->fft_length/2+1);}
     
     //求各通道的初始平均数
-    channels_sum(input_float,average_data,par->window_size,par->window_size,(par->fft_length/2+1),par->fft_length/2,par->thread_num);
+    channels_sum(input_float,average_data,par->window_size,par->window_size,(par->fft_length/2+1)*2,par->fft_length/2,par->thread_num);
     
     if(par->print_memory)
     {print_data_double(average_data,0,average_data_size,par->fft_length/2);}
@@ -471,23 +497,24 @@ int fft_half_1_channel(pars *par)
         readfile(input_char_cpu,par->file_list,add_char_size);
         
         printf("copy input char to gpu memory\n");
-        cudaMemcpy(input_char,input_char_cpu,add_char_size,cudaMemcpyHostToDevice);      
-        char2float(input_char,input_half_add,par->fft_length,par->per_batch,par->thread_num);
+        cudaMemcpy(input_char,input_char_cpu,add_char_size,cudaMemcpyHostToDevice);
+        //read_char_array(input_char, simulate_input_char ,fft_length*per_batch*2);        
+        char2float_interlace(input_char,input_half_add,par->fft_length,par->per_batch,par->thread_num);
         
         if(par->print_memory)
         {print_data_half(input_half,0,input_half_size,par->fft_length+2);}
         
-        fft_1d_half(input_half_add,input_half_add,par->fft_length,par->per_batch);
+        fft_1d_half(input_half_add,input_half_add,par->fft_length,par->per_batch*2);
         
         if(par->print_memory)
         {print_data_half(input_half,0,input_half_size,par->fft_length+2);}
         
-        complex_modulus_squared(input_half_add,input_float_add,par->fft_length/2,par->per_batch,par->thread_num);
+        complex_modulus_squared_interlace(input_half_add,input_float_add,par->fft_length/2,par->factor_A,par->factor_B,par->per_batch,par->thread_num);
         
         if(par->print_memory)
         {print_data_float(input_float,0,input_float_size,par->fft_length/2+1);}
         
-        compress(average_data, input_float, input_float_add,compressed_data,(par->fft_length/2+1),par->per_batch/par->step, par->step,par->begin_channel, par->compress_channel_num, par->window_size, par->thread_num);
+        compress(average_data, input_float, input_float_add,compressed_data,(par->fft_length/2+1)*2,par->per_batch/par->step, par->step,par->begin_channel, par->compress_channel_num, par->window_size, par->thread_num);
         
         if(par->print_memory)
         {print_data_binary(compressed_data,0,compressed_data_size,par->compress_channel_num/8);}
@@ -508,7 +535,7 @@ int fft_half_1_channel(pars *par)
     
     if(par->remain_batch>0)
     {
-        long long int remain_char_size=par->fft_length*par->remain_batch;
+        long long int remain_char_size=par->fft_length*par->remain_batch*(long long int)2;
         
         //把余下的数据补到最后一次读取的数据的后面
         printf("begin compress remained batch\n");
@@ -519,25 +546,25 @@ int fft_half_1_channel(pars *par)
 
         //read_char_array(input_char+fft_length*per_batch*2,simulate_input_char,fft_length*remain_batch*2);
         //先读取余下的数据
-        char2float(input_char,input_half_add,par->fft_length,par->remain_batch,par->thread_num);
+        char2float_interlace(input_char,input_half_add,par->fft_length,par->remain_batch,par->thread_num);
         
         if(par->print_memory)
         {print_data_half(input_half,0,input_half_size,par->fft_length+2);}
         
-        //对余下的数据进行fft变换等处理(之所以使用per_batch,是为了保证batch数为2的整数次幂,减小cufft库使用的显存)
-        fft_1d_half(input_half_add,input_half_add,par->fft_length,par->per_batch);
+        //对余下的数据进行fft变换等处理(之所以使用per_batch*2,是为了保证batch数为2的整数次幂,减小cufft库使用的显存)
+        fft_1d_half(input_half_add,input_half_add,par->fft_length,par->per_batch*2);
         
         if(par->print_memory)
         {print_data_half(input_half,0,input_half_size,par->fft_length+2);}
         
-        complex_modulus_squared(input_half_add,input_float_add,par->fft_length/2,par->remain_batch,par->thread_num);
+        complex_modulus_squared_interlace(input_half_add,input_float_add,par->fft_length/2,par->factor_A,par->factor_B,par->remain_batch,par->thread_num);
         
         if(par->print_memory)
         {print_data_float(input_float,0,input_float_size,par->fft_length/2+1);}
         
         long long int compressed_remain_data_size=par->compress_channel_num/(long long int)8*par->remain_batch/par->step;
         
-        compress(average_data, input_float, input_float_add,compressed_data,(par->fft_length/2+1),par->remain_batch/par->step, par->step,par->begin_channel, par->compress_channel_num, par->window_size, par->thread_num);
+        compress(average_data, input_float, input_float_add,compressed_data,(par->fft_length/2+1)*2,par->remain_batch/par->step, par->step,par->begin_channel, par->compress_channel_num, par->window_size, par->thread_num);
 
         if(par->print_memory)
         {print_data_binary(compressed_data,0,compressed_remain_data_size,par->compress_channel_num/8);}
@@ -548,8 +575,8 @@ int fft_half_1_channel(pars *par)
         }
         
         //input_float_tail和head需要修改
-        input_float_reflect_head+=(par->fft_length/2+1)*par->remain_batch;
-        input_float_reflect_tail+=(par->fft_length/2+1)*par->remain_batch;
+        input_float_reflect_head+=(par->fft_length/2+1)*2*par->remain_batch;
+        input_float_reflect_tail+=(par->fft_length/2+1)*2*par->remain_batch;
     }
     
     //清除cufft的plan
@@ -558,7 +585,7 @@ int fft_half_1_channel(pars *par)
     //余下的window_size大小的数据需要经过反射处理,因此调用另一个压缩函数(head指针和tail指针反向移动)
     
     printf("begin reflect tail data\n");
-    compress_reflect(average_data, input_float_reflect_head, input_float_reflect_tail,compressed_data,(par->fft_length/2+1),par->window_size/par->step, par->step,par->begin_channel, par->compress_channel_num, par->window_size, par->thread_num);
+    compress_reflect(average_data, input_float_reflect_head, input_float_reflect_tail,compressed_data,(par->fft_length/2+1)*2,par->window_size/par->step, par->step,par->begin_channel, par->compress_channel_num, par->window_size, par->thread_num);
     
     long long int compressed_reflect_data_size=par->compress_channel_num/(long long int)8*par->window_size/par->step;
     
@@ -595,9 +622,8 @@ int main(int argc, char *argv[]) {
     
     //初始化程序用到的参数
     pars* program_par= (pars*)calloc(1,sizeof(pars));
-    initialize_1_channel_parameter_list (argc ,argv ,program_par);
-    print_1_channel_parameter_list(program_par);
+    initialize_2_channel_parameter_list (program_par ,argc ,argv);
+    print_2_channel_parameter_list(program_par);
     //完成计算
-    return fft_half_1_channel(program_par);
+    return fft_half_2_channel(program_par);
 }
-

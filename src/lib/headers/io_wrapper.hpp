@@ -3,9 +3,14 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cuda_runtime.h>
+#include <vector>
 
-long long int GetFileSize(char* filename);
-long long int GetFilelistSize(int file_num , char** file_list);
+long long int GetFileSize(const char* filename);
+long long int GetFilelistSize(int file_num , char** filelist);
+long long int GetFilelistSize(const std::vector<std::string> & filelist);
+long long int GetFilelistSize(const std::string & filelist);
+std::vector<std::string> split_names_by_space(const std::string & file_names);
+std::string GetExeDirPath(void);
 void readfile(char *input_char,char** file_list ,long long int ask_size);
 void read_char_array(signed char *input_char,signed char * simulate_array ,long long int ask_size);
 void print_data_signed_char(char* data,long long int begin,long long int end,int break_num);
@@ -17,16 +22,21 @@ void print_data_half_for_copy(short* data,long long int begin,long long int end,
 void print_data_float_for_copy(float* data,long long int begin,long long int end);
 void float_2_half(void *input_float_void,void *output_half_void,long long int begin,long long int end);
 
-#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+class read_stream
 {
-    if (code != cudaSuccess) 
-    {
-        printf("GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-        if (abort) exit(code);
-    }
-    else
-    {
-        printf("GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-    }
-}
+public:
+    std::ifstream *original_data;
+    int file_number;
+    long long int stream_size;
+    long long int stream_remain_size;
+    long long int file_remain_size;
+    long long int read_remain_size;
+    long long int read_size;
+    std::vector<std::string> filelist;
+    read_stream(const std::string& filelist);
+    read_stream(const std::vector<std::string>& filelist ,long long int stream_size);
+    read_stream(read_stream& old_stream) = delete;
+    read_stream(read_stream&& old_stream);
+    int read(char *input_char , long long int ask_size);
+    ~read_stream(void);
+};

@@ -29,7 +29,7 @@ for i in range(args.channel_num//args.fre_add-1):
 
 #pdb.set_trace()
 while(remain_batch>=per_batch):
-    data_tmp=np.array(struct.unpack("B"*(args.channel_num*per_batch//8),f.read(args.channel_num*per_batch//8)),dtype='uint8')
+    data_tmp=np.frombuffer(f.read(args.channel_num*per_batch//8),dtype='uint8')
     data_tmp=np.unpackbits(data_tmp)
     #按照行优先的内存排布方式重新组织数组
     data_tmp=data_tmp.reshape(per_batch,args.channel_num//args.fre_add,args.fre_add)
@@ -47,7 +47,7 @@ while(remain_batch>=per_batch):
 if(remain_batch//args.time_add>0):
     #确保remain_batch被step整除
     remain_batch = (remain_batch//args.time_add)*args.time_add
-    data_tmp = np.array(struct.unpack("B"*(args.channel_num*remain_batch//8), f.read(args.channel_num*remain_batch//8)),dtype='uint8')
+    data_tmp = np.frombuffer(f.read(args.channel_num*remain_batch//8),dtype='uint8')
     data_tmp = np.unpackbits(data_tmp)
     data_tmp = data_tmp.reshape(remain_batch, args.channel_num//args.fre_add, args.fre_add)
     data_tmp = data_tmp.sum(axis=2)

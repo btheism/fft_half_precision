@@ -1,0 +1,14 @@
+#字典
+key:
+    key1 : value1
+    key2 : value2
+#数组
+seq:
+    - seq1
+    - seq2
+#标量
+scalar:
+    scalar1
+    scalar2
+null_scalar :
+

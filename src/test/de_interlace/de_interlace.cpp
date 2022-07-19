@@ -3,15 +3,20 @@
 #include <fstream>
 #include <cuda_runtime.h>
 
-#include <other_function_library.hpp>
+#include <io_wrapper.hpp>
 #include <kernal_wrapper.hpp>
 #include <cufft_wrapper.hpp>
+#include <cuda_macros.hpp>
 
 int main(int argc, char *argv[]) {
 
     //计算输入数据的总长度
-    char** file_list=argv+1;
-    long long int signal_length=GetFilelistSize(argc-1, file_list);
+
+    //初始化参数为左闭右开
+    std::vector<std::string> files(argv+1, argv + argc);
+    read_stream data(files , GetFilelistSize(files));
+    long long int signal_length = data.stream_size;
+    
     std::cout<<"signal length = "<<signal_length<<std::endl;
     
     //设置缓冲区大小
@@ -22,7 +27,7 @@ int main(int argc, char *argv[]) {
     gpuErrchk(cudaMallocHost((void**)&output_char_A,sizeof(signed char)*cache_size/2*sizeof(char)));
     gpuErrchk(cudaMallocHost((void**)&output_char_B,sizeof(signed char)*cache_size/2*sizeof(char)));
     
-    std::string first_input_name=std::string(file_list[0]);
+    std::string first_input_name=data.filelist[0];
     std::string output_A = first_input_name.substr(0, first_input_name.length() - 4) + "_A.dat";
     std::string output_B = first_input_name.substr(0, first_input_name.length() - 4) + "_B.dat";
     std::ofstream output_A_stream(output_A.c_str(),std::ios::trunc|std::ios::binary);
@@ -39,7 +44,7 @@ int main(int argc, char *argv[]) {
     {   
         input_offset=0;
         output_offset=0;
-        readfile(input_char,file_list,cache_size);
+        data.read(input_char,cache_size);
         while(input_offset<cache_size)
         {
              output_char_A[output_offset]=input_char[input_offset];
@@ -56,9 +61,10 @@ int main(int argc, char *argv[]) {
     long long int remain_length=signal_length%cache_size;
     if(remain_length>0)
     {
+        std::cout<<"read and write remained signal"<<std::endl;
         input_offset=0;
         output_offset=0;
-        readfile(input_char,file_list,remain_length);
+        data.read(input_char,remain_length);
         while(input_offset<remain_length)
         {
              
@@ -74,7 +80,6 @@ int main(int argc, char *argv[]) {
         read_length+=remain_length;
         std::cout<<"read length = "<<read_length<<std::endl;
     }
-    readfile(input_char,file_list,-1);
     output_A_stream.close();
     output_B_stream.close();
 }

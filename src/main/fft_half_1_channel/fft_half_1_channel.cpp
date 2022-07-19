@@ -34,7 +34,7 @@ public:
     };
 };
 
-std::ostream & operator<<(std::ostream & output , const stream_info & input)
+std::ostream & operator<<(std::ostream & output, const stream_info & input)
 {
     output<<"\n filelist : \n";
     for(int serial=0 ; serial < input.filelist.size() ; serial++)
@@ -90,7 +90,7 @@ struct fft_half_1_channel_parameter_list
 typedef struct fft_half_1_channel_parameter_list pars;
 
 //该函数解析命令行传递给fft_half_1_channel程序的参数列表，设置程序的各项参数
-void initialize_1_channel_parameter_list (pars &par , int argc ,char *argv[])
+void initialize_1_channel_parameter_list (pars &par, int argc ,char *argv[])
 {
     std::string config_file_name;
     //打开配置文件
@@ -168,21 +168,33 @@ void initialize_1_channel_parameter_list (pars &par , int argc ,char *argv[])
     }
     if(par.thread_num==0)
     {
-        throw std::runtime_error("channel num is too small , exit.");
+        throw std::runtime_error("channel num is too small, exit.");
     }
     
     //设定输入流信息
     par.stream.set(config("stream")());
     
     //设定信号长度
-    par.signal_length=par.stream.stream_length;
+    long long int manual_signal_length = std::stoll(config("signal_length")());
+    if(manual_signal_length==0)
+    {
+        par.signal_length=par.stream.stream_length;
+    }
+    else if(manual_signal_length > par.stream.stream_length)
+    {
+        throw std::runtime_error("signal_length is larger than actual file stream size");
+    }
+    else
+    {
+        par.signal_length=manual_signal_length;
+    }
     
     //计算数据被划分的区间数(即数据需要进行的fft变换的次数),双通道数据需要额外除以2,且要去除无法被step整除的部分
     par.signal_batch=(par.signal_length/input_type_size(par.input_type_flag)/par.fft_length/par.step)*par.step;
     
     if(par.signal_batch<par.window_size)
     {
-        throw std::runtime_error("input file is too small , exit.");
+        throw std::runtime_error("input file is too small, exit.");
     }
     //缓冲区减去窗口大小是每次压缩的数据量
     par.per_batch=par.batch_buffer_size-par.window_size;
@@ -215,18 +227,22 @@ void print_1_channel_parameter_list(const pars &par)
     
 }
 
-inline void get_new_data(read_stream& input_stream , void *input_int , void *input_int_cpu , short* input_half , long long int fft_length , long long int ask_batch , int thread_num , int input_type_flag , size_t sizeof_input_int ,int print_memory)
+inline void get_new_data(read_stream& input_stream, void *input_int, void *input_int_cpu, short* input_half, long long int fft_length, long long int ask_batch, int thread_num, int input_type_flag, size_t sizeof_input_int ,int print_memory)
 {
     long long int batch_half_size=(fft_length+2)*ask_batch;
     std::cout<<"read input int to cpu memory"<<std::endl;
-    input_stream.read((char*)input_int_cpu , fft_length*ask_batch*sizeof_input_int);
-    std::cout<<"read input int to gpu memory"<<std::endl;
-    cudaMemcpy(input_int, input_int_cpu, fft_length*ask_batch*sizeof_input_int,cudaMemcpyHostToDevice);
-    int2float(input_int , input_half , fft_length , ask_batch , thread_num ,input_type_flag);
+    input_stream.read((char*)input_int_cpu, fft_length*ask_batch*sizeof_input_int);
     if(print_memory)
     {
-        print_data_half(input_half , 0 , batch_half_size , fft_length+2);
-        print_data_half_for_copy(input_half , 0 , batch_half_size , fft_length+2);
+        print_data_multi_int(input_int_cpu, 0, fft_length*ask_batch, fft_length, input_type_flag);
+    }
+    std::cout<<"read input int to gpu memory"<<std::endl;
+    cudaMemcpy(input_int, input_int_cpu, fft_length*ask_batch*sizeof_input_int,cudaMemcpyHostToDevice);
+    int2float(input_int, input_half, fft_length, ask_batch, thread_num ,input_type_flag);
+    if(print_memory)
+    {
+        print_data_half(input_half, 0, batch_half_size, fft_length+2);
+        print_data_half_for_copy(input_half, 0, batch_half_size, fft_length+2);
     }
     return;
 }
@@ -268,8 +284,8 @@ int fft_half_1_channel(const pars &par)
         //所有内存均为unified memory
         gpuErrchk(cudaMallocManaged((void**)&input_int,sizeof_input_int*input_int_size));
         gpuErrchk(cudaMallocManaged((void**)&input_half,sizeof(short)*input_half_size));
-        gpuErrchk(cudaMallocManaged((void**)&compressed_data,sizeof(char)*compressed_data_size));
         gpuErrchk(cudaMallocManaged((void**)&average_data,sizeof(double)*average_data_size));
+        gpuErrchk(cudaMallocManaged((void**)&compressed_data,sizeof(char)*compressed_data_size));
     }
     else
     {
@@ -281,9 +297,9 @@ int fft_half_1_channel(const pars &par)
     input_float=(float*)input_half;
     
     //定义两个之后会经常用到的内存偏移量
-    long long int half_window_size=(par.fft_length+(long long int)2)*par.window_size;
-    long long int float_window_size=(par.fft_length/(long long int)2+(long long int)1)*par.window_size;
-    long long int float_add_size=(par.fft_length/(long long int)2+(long long int)1)*par.per_batch;
+    long long int half_window_size=(par.fft_length+2)*par.window_size;
+    long long int float_window_size=(par.fft_length/2+1)*par.window_size;
+    long long int float_add_size=(par.fft_length/2+1)*par.per_batch;
     //根据以上偏移量计算指针
     
     //第一次读取数据后,后续读入数据的位置
@@ -294,7 +310,7 @@ int fft_half_1_channel(const pars &par)
     float *input_float_to_head=input_float+float_add_size;
     
     //指向fft变换后的数据末尾的倒数第一个区间的指针,便于之后对尾部数据进行反射
-    float* input_float_reflect_tail=input_float_add-(par.fft_length/(long long int)2+(long long int)1);
+    float* input_float_reflect_tail=input_float_add-(par.fft_length/2+1);
     //指向需要反射的数据的头部的指针
     float* input_float_reflect_head=input_float;
     
@@ -453,7 +469,7 @@ int main(int argc, char *argv[]) {
     
     //初始化程序用到的参数
     pars program_par;
-    initialize_1_channel_parameter_list (program_par , argc , argv);
+    initialize_1_channel_parameter_list (program_par, argc, argv);
     print_1_channel_parameter_list(program_par);
     //完成计算
     return fft_half_1_channel(program_par);

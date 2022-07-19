@@ -22,8 +22,8 @@ int main(int argc, char *argv[]) {
     print_data_half_for_copy(input_half,0,34,8);
     ifft_1d_half((void*)input_half,(void*)input_half,32,1);
     print_data_half_for_copy(input_half,0,34,8);
-    complex_multiply((void *)input_half , 1.0 , 1.0 , 1.0/32.0 , 1.0 , 8 , 2 , 1);
-    print_data_half_for_copy(input_half,0,34,8);
+    //complex_multiply((void *)input_half , 1.0 , 1.0 , 1.0/32.0 , 1.0 , 8 , 2 , 1);
+    //print_data_half_for_copy(input_half,0,34,8);
     complex_add((void *)input_half , (void *)input_half , 8 , 2 , 1);
     print_data_half_for_copy(input_half,0,34,8);
     

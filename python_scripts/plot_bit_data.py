@@ -29,6 +29,7 @@ for i in range(args.channel_num//args.fre_add-1):
 
 #pdb.set_trace()
 while(remain_batch>=per_batch):
+    print("read data to buffer")
     data_tmp=np.frombuffer(f.read(args.channel_num*per_batch//8),dtype='uint8')
     data_tmp=np.unpackbits(data_tmp)
     #按照行优先的内存排布方式重新组织数组
@@ -45,6 +46,7 @@ while(remain_batch>=per_batch):
     remain_batch=remain_batch-per_batch
 #有余数
 if(remain_batch//args.time_add>0):
+    print("read remain data to buffer")
     #确保remain_batch被step整除
     remain_batch = (remain_batch//args.time_add)*args.time_add
     data_tmp = np.frombuffer(f.read(args.channel_num*remain_batch//8),dtype='uint8')
@@ -56,8 +58,8 @@ if(remain_batch//args.time_add>0):
     data_tmp = data_tmp.reshape(args.channel_num//args.fre_add, remain_batch//args.time_add, args.time_add)
     data_tmp = data_tmp.sum(axis=2)
     data = np.hstack((data, data_tmp))
-#data=data.reshape()
-pyplot.figure(figsize=(64,48))
+
+pyplot.figure(dpi=300)
 pyplot.imshow(data)
 pyplot.savefig(args.file+".png")
 f.close()

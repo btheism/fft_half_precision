@@ -37,18 +37,33 @@ std::string GetExeDirPath(void)
 
 //一个获取文件大小的函数
 #include <sys/stat.h>
+long long int GetFileSize(const std::string filename)
+{
+    struct stat stat_buf;
+    int rc = stat(filename.c_str(), &stat_buf);
+    if(rc==0)
+    {
+        std::cout<<"File "<<filename<<" 's size is "<<stat_buf.st_size<<std::endl;
+    }
+    else
+    {
+        throw std::runtime_error("fail to open file "+filename);
+    }
+    return rc == 0 ? stat_buf.st_size : -1;
+}
+
 long long int GetFileSize(const char* filename)
 {
     struct stat stat_buf;
     int rc = stat(filename, &stat_buf);
     if(rc==0)
     {
-        printf("File %s 's size is %lld.\n" , filename,(long long int)stat_buf.st_size);
+        std::cout<<"File "<<filename<<" 's size is "<<stat_buf.st_size<<std::endl;
     }
     else
     {
-        printf("fail to open file %s , exit.\n" , filename);
-        exit(-1);
+        std::cerr<<"fail to open file "<<filename<<std::endl;
+        throw std::runtime_error("fail");
     }
     return rc == 0 ? stat_buf.st_size : -1;
 }
@@ -178,7 +193,7 @@ read_stream::read_stream(const std::string & filelist):filelist(split_names_by_s
     this->stream_size=0;
     for(int serial=0 ; serial<this->filelist.size() ; serial++)
     {
-        this->stream_size+=GetFileSize(this->filelist[serial].c_str());
+        this->stream_size+=GetFileSize(this->filelist[serial]);
     }
     this->stream_remain_size=this->stream_size;
 };
@@ -223,7 +238,7 @@ int read_stream::read(char *input_char , long long int ask_size)
             if(this->original_data->is_open())
             {
                 std::cout << "Succeed opening input file "<<this->filelist[file_number]<<std::endl;
-                this->file_remain_size=GetFileSize(this->filelist[file_number].c_str());
+                this->file_remain_size=GetFileSize(this->filelist[file_number]);
             }
             else
             {
@@ -287,22 +302,13 @@ read_stream::read_stream(read_stream&& old_stream)
 }
 
 //该函数返回输入文件的总大小,便于主程序决定循环次数等参数
-long long int GetFilelistSize(int file_num , char** filelist)
-{
-    long long int file_total_size=0;
-    for (int i = 0; i < file_num; i++){
-        std::cout<<"Input file "<<i<<" is "<<filelist[i]<<std::endl;
-        file_total_size+=GetFileSize(filelist[i]);
-    }
-    return file_total_size;
-}
 
 long long int GetFilelistSize(const std::vector<std::string> & filelist)
 {
     long long int list_size=0;
     for(int serial=0 ; serial<filelist.size() ; serial++)
     {
-        list_size+=GetFileSize(filelist[serial].c_str());
+        list_size+=GetFileSize(filelist[serial]);
     }
     return list_size;
 };
@@ -312,87 +318,126 @@ long long int GetFilelistSize(const std::string & filelist)
     return GetFilelistSize(split_names_by_space(filelist));
 };
 
-void print_data_signed_char(char* data,long long int begin,long long int end,int break_num)
+template <typename T ,typename desired>
+void print_data(T* data ,const char* T_typename , long long int begin,long long int end,int break_num)
 {
-    std::cout<<"Print signed char data from "<<begin<<" to "<<end<<std::endl;
-    char newline=0;
+    std::cout<<"Print "<<T_typename<<" data from "<<begin<<" to "<<end<<std::endl;
+    int newline=0;
     for(int i=begin;i<end;i++)
     {
-            std::cout<<i<<"\t"<<(int)*((signed char*)data+i)<<"\t";
+            std::cout<<i<<"\t"<<(desired)(*(data+i))<<"\t";
             newline++;
             if(newline==break_num)
             {
-                std::cout << std::endl;
+                std::cout<<"\n";
                 newline=0;
             }
     }
     if(newline!=break_num)
-        std::cout << std::endl;
+        std::cout<<"\n";
+    std::cout<<std::flush;
 }
 
-
-void print_data_half(short* data,long long int begin,long long int end, int break_num)
+template <typename T, typename desired>
+void print_data_for_copy(T* data ,const char* T_typename , long long int begin,long long int end,int break_num)
 {
-    std::cout<<"Print half data from "<<begin<<" to "<<end<<std::endl;
-    std::cout.precision(6);
-    std::cout<<std::fixed;
-    char newline=0;
+    std::cout<<"Print "<<T_typename<<" data for copy from "<<begin<<" to "<<end<<std::endl;
+    int newline=0;
     for(int i=begin;i<end;i++)
     {
-            std::cout<<i<<"\t"<<__half2float(*(half*)(data+i))<<"\t";
+            std::cout<<(desired)(*(data+i))<<",";
             newline++;
             if(newline==break_num)
             {
-                std::cout << std::endl;
+                std::cout<<"\n";
                 newline=0;
             }
     }
     if(newline!=break_num)
-        std::cout << std::endl;
+        std::cout<<"\n";
+    std::cout<<std::flush;
+}
+
+/*
+std::ostream & operator<<(std::ostream & output ,const half & input)
+{
+    output<<(float)input;
+    return output;
+}
+*/
+
+void print_data_signed_char(signed char* data,long long int begin,long long int end,int break_num)
+{
+    print_data<signed char,short>(data,"signed char",begin,end,break_num);
+}
+
+void print_data_short(short* data,long long int begin,long long int end,int break_num)
+{
+    print_data<short,short>(data,"short",begin,end,break_num);
+}
+
+void print_data_half(short* data,long long int begin,long long int end, int break_num)
+{    
+    std::cout.precision(6);
+    std::cout<<std::fixed;
+    print_data<half,float>((half*)data,"half float",begin,end,break_num);
 }
 
 void print_data_float(float* data,long long int begin,long long int end,int break_num)
 {
-    std::cout<<"Print float data from "<<begin<<" to "<<end<<std::endl;
-    std::cout.precision(10);
+    std::cout.precision(6);
     std::cout<<std::fixed;
-    char newline=0;
-    for(int i=begin;i<end;i++)
-    {
-            std::cout<<i<<"\t"<<data[i]<<"\t";
-            newline++;
-            if(newline==break_num)
-            {
-                std::cout << std::endl;
-                newline=0;
-            }
-    }
-    if(newline!=break_num)
-        std::cout << std::endl;
+    print_data<float,float>(data,"float",begin,end,break_num);
 }
 
 void print_data_double(double* data,long long int begin,long long int end,int break_num)
 {
-    std::cout<<"Print double data from "<<begin<<" to "<<end<<std::endl;
     std::cout.precision(10);
     std::cout<<std::fixed;
-    char newline=0;
-    for(int i=begin;i<end;i++)
-    {
-            std::cout<<i<<"\t"<<data[i]<<"\t";
-            newline++;
-            if(newline==break_num)
-            {
-                std::cout << std::endl;
-                newline=0;
-            }
-    }
-    if(newline!=break_num)
-        std::cout << std::endl;
+    print_data<double,double>(data,"float",begin,end,break_num);
 }
 
+void print_data_multi_int(void* data,long long int begin,long long int end,int break_num ,int input_type_flag)
+{
+    switch(input_type_flag)
+    {
+        case 0:
+            print_data<signed char,short>((signed char*)data,"signed char",begin,end,break_num);
+            break;
+        case 1:
+            print_data<short,short>((short*)data,"short",begin,end,break_num);
+            break;
+        default:
+            throw std::runtime_error("unrecognized input_type_flag");
+    }
+}
+
+class binary_data
+{
+public:
+    char char_data;
+    binary_data(char input):char_data(input){}
+};
+
+std::ostream & operator<<(std::ostream & output ,const binary_data & input)
+{
+    for (int bit_serial = 0; bit_serial <=7 ; bit_serial++) 
+        {
+            //打印时先打印低位,后打印高位
+            output<<((input.char_data & (1 << bit_serial))?1:0);
+        }
+    return output;
+};
+
+void print_data_binary(char* data,long long int begin,long long int end,int break_num)
+{
+    print_data<char,binary_data>(data,"binary",begin,end,break_num);
+}
+
+/*
 void print_char_binary(char c) {
-    for (char i = 0; i <=7 ; i++) {
+    for (int bit_serial = 0; bit_serial <=7 ; bit_serial++) 
+    {
         std::cout << ((c & (1 << i))? '1' : '0');
     }
 }
@@ -415,40 +460,27 @@ void print_data_binary(char* data,long long int begin,long long int end,int brea
         }
     }
     if(newline!=break_num)
-        std::cout << std::endl;
+        std::cout<<"\n";
+    std::cout<<std::flush;
+}*/
+
+void print_data_short_for_copy(short* data,long long int begin,long long int end,int break_num)
+{
+    print_data_for_copy<short,short>(data,"short",begin,end,break_num);
 }
 
-void print_data_half_for_copy(short* data_short,long long int begin,long long int end, int break_num)
+void print_data_half_for_copy(short* data,long long int begin,long long int end, int break_num)
 {
-    half *data=(half*)data_short;
-    std::cout<<"Print half data for copy from "<<begin<<" to "<<end<<std::endl;
-    char newline=0;
     std::cout.precision(6);
     std::cout<<std::fixed;
-    for(int i=begin;i<end;i++)
-    {
-        std::cout<<(float)data[i]<<",";
-        newline++;
-        if(newline==break_num)
-        {
-            std::cout << std::endl;
-            newline=0;
-        }
-    }
-    if(newline!=break_num)
-        std::cout << std::endl;
+    print_data_for_copy<half,float>((half*)data,"half float",begin,end,break_num);
 }
 
-void print_data_float_for_copy(float* data,long long int begin,long long int end)
+void print_data_float_for_copy(float* data,long long int begin,long long int end, int break_num)
 {
-    std::cout<<"Print float data for copy from "<<begin<<" to "<<end<<std::endl;
     std::cout.precision(10);
     std::cout<<std::fixed;
-    for(int i=begin;i<end;i++)
-    {
-            std::cout<<data[i]<<",";
-    }
-    std::cout<<std::endl;
+    print_data_for_copy<float,float>(data,"float",begin,end,break_num);
 }
 
 void float_2_half(void *input_float_void,void *output_half_void,long long int begin,long long int end)

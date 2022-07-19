@@ -4,6 +4,11 @@ constexpr bool debug_flag=1;
 constexpr bool debug_flag=0;
 #endif
 
+//0表示不翻转(原始数据为小端法表示)
+//1表示翻转(原始数据为大端法表示)
+constexpr bool endian_flag=0;
+
+
 #include <cuda_fp16.h>
 #include<stdio.h>
 #include<iostream>
@@ -11,7 +16,7 @@ constexpr bool debug_flag=0;
 #include<cuda_macros.hpp>
 
 #define INT8_SCALE 256 //定义对输入数据的压缩系数
-#define INT16_SCALE 65536
+#define INT16_SCALE 32768
 //#define PRINT_INFO //是否打印函数调用信息
 #define TEST_INF //是否检测fft的变换结果出现溢出
 
@@ -97,13 +102,39 @@ __global__ void short2float_gpu(short*input_short,half *input_half,long long int
     long long int output_block_offset=threadIdx.x+output_grid_offset;
 
     for (int i = 0; i < thread_loop; i++) {
+        
+        if(endian_flag==0)
+        //假设数据是小端表示
+        {
         input_half[output_block_offset] =(half)((float)input_short[input_block_offset]/(float)INT16_SCALE);
+        }
+        else
+        {
+        //假设数据是大端表示
+        input_half[output_block_offset] = 
+        (half)
+        (
+        (float)(
+        (short)(
+        (unsigned short)(
+        ((unsigned short)(input_short[input_block_offset]))>>8
+        )
+        +
+        (unsigned short)(
+        ((unsigned short)(input_short[input_block_offset]))<<8
+        )
+        )
+        )
+        /(float)INT16_SCALE
+        );
+        }
+        //printf("%x,%x,%x\n",input_short[input_block_offset],(unsigned short)((unsigned short)input_short[input_block_offset])>>8,(unsigned short)(((unsigned short)input_short[input_block_offset])<<8));
         input_block_offset+=thread_num;
         output_block_offset+=thread_num;
     }
 }
 
-//对gpu函数的封装
+//对gpu函数的封装,把输入整数转为half类型
 //thread_num最大等于fft_length
 //flag表示使用的是8位整数还是16位整数(8位0,16位1)
 void int2float(void* input_int_void,void* input_half_void,long long int fft_length,long long int batch,int thread_num,int input_type_flag)
@@ -286,7 +317,7 @@ __global__ void complex_modulus_squared_gpu(half2 *complex_number,float *float_n
             printf("%lld,%f,x",index,(float)complex_number[index].y);
 #endif
     //计算复数的模方
-        float_number[index]=(float)((complex_number[index].x*complex_number[index].x)+(complex_number[index].y*complex_number[index].y));
+        float_number[index]=((float)complex_number[index].x*(float)complex_number[index].x)+((float)complex_number[index].y*(float)complex_number[index].y);
         index+=thread_num;
     }
 }
@@ -622,7 +653,8 @@ void channels_sum(void *input_data_void,void *sum_data_void,long long int window
 
 
 //这里的batch指按照步长滑动的次数
-
+//比较时比较该位置的数据与它背后window_size个数据的平均数,平均数包含该数据自身
+//传入的sum为包含了自身的平均值,输出的sum为平移了一个step内的window的平均数
 __global__ void compress_gpu(double *average_data,float *uncompressed_data_head,float *uncompressed_data_tail,unsigned char*compressed_data, long long int batch_interval, long long int batch, long long int step, long long int output_channel_num ,float window_size) {
     long long int output_index= threadIdx.x + blockIdx.x * blockDim.x;
     long long int input_index=output_index*8;
@@ -649,9 +681,12 @@ __global__ void compress_gpu(double *average_data,float *uncompressed_data_head,
             }
             //回退input_index
             input_index-=batch_interval*step;
+            //先存储低位,后存储高位
+            //printf("%d,%d,%lld,%f,A\n",threadIdx.x,blockIdx.x,batch_num,average_data[average_index+bit_step]);
+            //printf("%d,%d,%lld,%f,%f,S\n",threadIdx.x,blockIdx.x,batch_num,head_sum/step,tail_sum/step);
             bit_sum+=(((head_sum/step)>average_data[average_index+bit_step])?1:0)<<bit_step;
-            average_data[average_index+bit_step]-=head_sum/window_size;
-            average_data[average_index+bit_step]+=tail_sum/window_size;
+            average_data[average_index+bit_step]-=head_sum/(double)window_size;
+            average_data[average_index+bit_step]+=tail_sum/(double)window_size;
         }
         compressed_data[output_index]=bit_sum;
         input_index+=batch_interval*step;
@@ -717,22 +752,19 @@ __global__ void compress_reflect_gpu(double *average_data,float *uncompressed_da
             {
                 head_sum+=uncompressed_data_head[input_index_head+bit_step];
                 tail_sum+=uncompressed_data_tail[input_index_tail+bit_step];
-                //printf("%d,%d,%d,%lld,Iht\n",threadIdx.x,blockIdx.x,batch_num,input_index+bit_step);
                 input_index_head+=batch_interval;
                 input_index_tail-=batch_interval;
             }
             //回退input_index,以计算相邻8个通道的下一个通道
             input_index_head-=batch_interval*step;
             input_index_tail+=batch_interval*step;
+            //printf("%d,%d,%lld,%f,A\n",threadIdx.x,blockIdx.x,batch_num,average_data[average_index+bit_step]);
+            //printf("%d,%d,%lld,%f,%f,S\n",threadIdx.x,blockIdx.x,batch_num,head_sum/step,tail_sum/step);
             bit_sum+=(((head_sum/step)>average_data[average_index+bit_step])?1:0)<<bit_step;
-            average_data[average_index+bit_step]-=head_sum/(float)window_size;
-            average_data[average_index+bit_step]+=tail_sum/(float)window_size;
-            //printf("%d,%d,%d,%lld,%f,%f,CP\n",threadIdx.x,blockIdx.x,batch_num,average_index+bit_step,(head_sum/step),average_data[average_index+bit_step]);
-            //printf("%d,%d,%d,%lld,%f,%f,%f,NA\n",threadIdx.x,blockIdx.x,batch_num,average_index+bit_step,(tail_sum/step),(head_sum/step),average_data[average_index+bit_step]);
-            //printf("%d,%d,%d,O+\n",threadIdx.x,blockIdx.x,bit_sum);
+            average_data[average_index+bit_step]-=head_sum/(double)window_size;
+            average_data[average_index+bit_step]+=tail_sum/(double)window_size;
         }
         compressed_data[output_index]=bit_sum;
-        //printf("%d,%d,%lld,O\n",threadIdx.x,blockIdx.x,output_index);
         input_index_head+=batch_interval*step;
         input_index_tail-=batch_interval*step;
         output_index+=output_channel_num;

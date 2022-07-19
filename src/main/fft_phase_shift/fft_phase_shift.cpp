@@ -479,7 +479,6 @@ int fft_phase_shift(const pars &par)
         if(par.print_memory)
         {
             print_data_float(input_float,0,multi_way_buffer_float_size,par.fft_length/2+1);
-            print_data_float_for_copy(input_float, 0, multi_way_buffer_float_size);
         }
     }
     

@@ -1,0 +1,16 @@
+fft_length : 16
+input_type_flag : 0
+print_middle_result_flag : 1
+
+begin_channel : 1 #min value is 1(not support 0)
+compress_channel_num : 8
+window_size : 2
+step : 1
+
+#set to 0 to let program auto select a number
+thread_num : 0
+
+#stream : /ssd/liuzh/data/21CMA_16bit_test.dat_test.dat
+stream : /ssd/liuzh/data/B0950/B0950+08_tracking_0001_A.dat
+
+batch : 13

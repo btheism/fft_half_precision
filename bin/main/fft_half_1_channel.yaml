@@ -7,7 +7,10 @@ window_size : 8192
 batch_buffer_size : 16384
 step : 16
 
-write_head : 0
+#set write_head to 1 to let program write header to output file
+#set print_memory to 1 to debug
+#set write_data to 1 to let program write compressed data to output file
+write_head : 1
 print_memory : 0
 write_data : 1
 
